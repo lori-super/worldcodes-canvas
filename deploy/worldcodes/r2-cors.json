@@ -1,0 +1,14 @@
+{
+  "rules": [
+    {
+      "id": "worldcodes-canvas-browser-upload",
+      "allowed": {
+        "origins": ["https://canvas.worldcodes.online"],
+        "methods": ["PUT", "HEAD"],
+        "headers": ["Content-Type", "x-amz-checksum-sha256"]
+      },
+      "exposeHeaders": ["ETag"],
+      "maxAgeSeconds": 3600
+    }
+  ]
+}

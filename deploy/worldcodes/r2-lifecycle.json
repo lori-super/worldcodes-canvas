@@ -1,0 +1,23 @@
+{
+  "rules": [
+    {
+      "id": "worldcodes-canvas-temp-24h",
+      "enabled": true,
+      "conditions": {
+        "prefix": "canvas-temp/"
+      },
+      "deleteObjectsTransition": {
+        "condition": {
+          "type": "Age",
+          "maxAge": 86400
+        }
+      },
+      "abortMultipartUploadsTransition": {
+        "condition": {
+          "type": "Age",
+          "maxAge": 86400
+        }
+      }
+    }
+  ]
+}
