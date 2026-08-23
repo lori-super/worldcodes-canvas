@@ -72,7 +72,7 @@ const WORLD_CODES_CHANNEL_ID = "worldcodes";
 const WORLD_CODES_MODELS: ChannelModel[] = [
     { name: "grok-imagine-image-quality", displayName: "Grok Imagine", capability: "image" },
     { name: "gpt-image-2", displayName: "GPT Image 2", capability: "image" },
-    { name: "gemini-3.1-flash-image", displayName: "Nano Banana 2", capability: "image" },
+    { name: "nano-banana-2", displayName: "Nano Banana 2", capability: "image" },
     { name: "MiniMax-H3", displayName: "MiniMax H3", capability: "video" },
     { name: "gpt-5.5", capability: "text" },
     { name: "gpt-4o-mini-tts", capability: "audio" },
@@ -150,6 +150,7 @@ const IMAGE_KEYWORDS = ["seedream", "gpt-image", "image", "dall-e", "dalle", "im
 export function guessCapability(name: string): ModelCapability {
     const value = name.toLowerCase();
     if (value === "minimax-h3") return "video";
+    if (value === "nano-banana-2") return "image";
     if (VIDEO_KEYWORDS.some((keyword) => value.includes(keyword))) return "video";
     if (AUDIO_KEYWORDS.some((keyword) => value.includes(keyword))) return "audio";
     if (IMAGE_KEYWORDS.some((keyword) => value.includes(keyword))) return "image";

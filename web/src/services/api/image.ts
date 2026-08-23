@@ -115,6 +115,7 @@ const IMAGE_MAX_PIXELS = 8294400;
 const IMAGE_MAX_EDGE = 3840;
 const IMAGE_MAX_RATIO = 3;
 const IMAGE_OUTPUT_FORMAT = "png";
+const WORLD_CODES_NANO_BANANA_MODEL = "nano-banana-2";
 
 const GEMINI_SUPPORTED_RATIOS = ["1:1", "1:4", "1:8", "2:3", "3:2", "3:4", "4:1", "4:3", "4:5", "5:4", "8:1", "9:16", "16:9", "21:9"];
 const GEMINI_IMAGE_SIZE_BY_QUALITY: Record<string, string> = { low: "1K", medium: "2K", high: "4K", standard: "1K", hd: "2K" };
@@ -354,8 +355,32 @@ function geminiModelName(model: string) {
     return model.trim().replace(/^models\//, "");
 }
 
+function isSameOriginWorldCodesNanoBanana(config: Pick<AiConfig, "baseUrl" | "model">) {
+    if (geminiModelName(config.model).toLowerCase() !== WORLD_CODES_NANO_BANANA_MODEL) return false;
+    const baseUrl = config.baseUrl.trim();
+    if (!baseUrl || (baseUrl.startsWith("/") && !baseUrl.startsWith("//"))) return true;
+    if (typeof window === "undefined") return false;
+    try {
+        return new URL(baseUrl, window.location.href).origin === window.location.origin;
+    } catch {
+        return false;
+    }
+}
+
+function usesGeminiImageEndpoint(config: Pick<AiConfig, "apiFormat" | "baseUrl" | "model">) {
+    return config.apiFormat === "gemini" || isSameOriginWorldCodesNanoBanana(config);
+}
+
+function worldCodesGeminiBaseUrl(baseUrl: string) {
+    const normalizedBaseUrl = baseUrl.trim().replace(/\/+$/, "");
+    const lowerBaseUrl = normalizedBaseUrl.toLowerCase();
+    if (lowerBaseUrl.endsWith("/v1beta")) return normalizedBaseUrl;
+    if (lowerBaseUrl.endsWith("/v1")) return `${normalizedBaseUrl.slice(0, -3)}/v1beta`;
+    return `${normalizedBaseUrl}/v1beta`;
+}
+
 function geminiApiUrl(config: Pick<AiConfig, "baseUrl" | "model">, action?: "generateContent" | "streamGenerateContent") {
-    const baseUrl = geminiBaseUrl(config);
+    const baseUrl = isSameOriginWorldCodesNanoBanana(config) ? worldCodesGeminiBaseUrl(config.baseUrl) : geminiBaseUrl(config);
     if (!action) return `${baseUrl}/models`;
     return `${baseUrl}/models/${encodeURIComponent(geminiModelName(config.model))}:${action}`;
 }
@@ -737,7 +762,7 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
             throw new Error(readAxiosError(error, apiText("requestFailed")));
         }
     }
-    if (requestConfig.apiFormat === "gemini") {
+    if (usesGeminiImageEndpoint(requestConfig)) {
         try {
             return await requestGeminiImages(requestConfig, prompt, [], n, options);
         } catch (error) {
@@ -797,7 +822,7 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
             throw new Error(readAxiosError(error, apiText("requestFailed")));
         }
     }
-    if (requestConfig.apiFormat === "gemini") {
+    if (usesGeminiImageEndpoint(requestConfig)) {
         if (mask) throw new Error(apiText("geminiMaskUnsupported"));
         try {
             return await requestGeminiImages(requestConfig, requestPrompt, references, n, options);
