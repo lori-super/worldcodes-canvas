@@ -12,7 +12,7 @@ export type ReasoningEffort = "auto" | "low" | "medium" | "high" | "xhigh";
 export type ChannelModel = {
     name: string;
     capability: ModelCapability;
-    script?: string;
+    displayName?: string;
 };
 
 export type ModelChannel = {
@@ -66,32 +66,38 @@ export const CONFIG_STORE_KEY = "infinite-canvas:ai_config_store";
 const CHANNEL_MODEL_SEPARATOR = "::";
 const OPENAI_BASE_URL = "https://api.openai.com";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
+const WORLD_CODES_BASE_URL = "/";
+const WORLD_CODES_CHANNEL_ID = "worldcodes";
+
+const WORLD_CODES_MODELS: ChannelModel[] = [
+    { name: "grok-imagine-image-quality", displayName: "Grok Imagine", capability: "image" },
+    { name: "gpt-image-2", displayName: "GPT Image 2", capability: "image" },
+    { name: "gemini-3.1-flash-image", displayName: "Nano Banana 2", capability: "image" },
+    { name: "MiniMax-H3", displayName: "MiniMax H3", capability: "video" },
+    { name: "gpt-5.5", capability: "text" },
+    { name: "gpt-4o-mini-tts", capability: "audio" },
+];
 
 export const defaultConfig: AiConfig = {
     channelMode: "local",
-    baseUrl: OPENAI_BASE_URL,
+    baseUrl: WORLD_CODES_BASE_URL,
     apiKey: "",
     apiFormat: "openai",
     channels: [
         {
-            id: "default",
-            name: i18n.t("config.channels.defaultName"),
-            baseUrl: OPENAI_BASE_URL,
+            id: WORLD_CODES_CHANNEL_ID,
+            name: "WorldCodes Relay",
+            baseUrl: WORLD_CODES_BASE_URL,
             apiKey: "",
             apiFormat: "openai",
-            models: [
-                { name: "gpt-image-2", capability: "image" },
-                { name: "grok-imagine-video", capability: "video" },
-                { name: "gpt-5.5", capability: "text" },
-                { name: "gpt-4o-mini-tts", capability: "audio" },
-            ],
+            models: WORLD_CODES_MODELS,
         },
     ],
-    model: "default::gpt-image-2",
-    imageModel: "default::gpt-image-2",
-    videoModel: "default::grok-imagine-video",
-    textModel: "default::gpt-5.5",
-    audioModel: "default::gpt-4o-mini-tts",
+    model: `${WORLD_CODES_CHANNEL_ID}::gpt-image-2`,
+    imageModel: `${WORLD_CODES_CHANNEL_ID}::gpt-image-2`,
+    videoModel: `${WORLD_CODES_CHANNEL_ID}::MiniMax-H3`,
+    textModel: `${WORLD_CODES_CHANNEL_ID}::gpt-5.5`,
+    audioModel: `${WORLD_CODES_CHANNEL_ID}::gpt-4o-mini-tts`,
     audioVoice: "alloy",
     audioFormat: "mp3",
     audioSpeed: "1",
@@ -102,7 +108,7 @@ export const defaultConfig: AiConfig = {
     videoWatermark: "false",
     systemPrompt: "",
     reasoningEffort: "auto",
-    models: ["default::gpt-image-2", "default::grok-imagine-video", "default::gpt-5.5", "default::gpt-4o-mini-tts"],
+    models: WORLD_CODES_MODELS.map((model) => `${WORLD_CODES_CHANNEL_ID}::${model.name}`),
     quality: "auto",
     size: "1:1",
     background: "",
@@ -143,6 +149,7 @@ const IMAGE_KEYWORDS = ["seedream", "gpt-image", "image", "dall-e", "dalle", "im
 /** Best-effort default capability for a freshly fetched model name; user can override in the channel editor. */
 export function guessCapability(name: string): ModelCapability {
     const value = name.toLowerCase();
+    if (value === "minimax-h3") return "video";
     if (VIDEO_KEYWORDS.some((keyword) => value.includes(keyword))) return "video";
     if (AUDIO_KEYWORDS.some((keyword) => value.includes(keyword))) return "audio";
     if (IMAGE_KEYWORDS.some((keyword) => value.includes(keyword))) return "image";
@@ -179,9 +186,9 @@ export function selectableModelsByCapability(config: AiConfig, capability?: Mode
     return config.channels.flatMap((channel) => channel.models.filter((model) => model.capability === capability).map((model) => encodeChannelModel(channel.id, model.name)));
 }
 
-/** The user script (if any) attached to a model; empty string means use the system default call. */
-export function resolveModelScript(config: AiConfig, value: string) {
-    return findChannelModel(config, value)?.model.script?.trim() || "";
+/** WorldCodes builds only use the audited built-in request paths. */
+export function resolveModelScript(_config: AiConfig, _value: string) {
+    return "";
 }
 
 function isAiConfigReady(config: AiConfig, model: string) {
@@ -271,8 +278,8 @@ export function normalizeChannelModels(models: Array<string | ChannelModel> | un
         if (!name || seen.has(name)) continue;
         seen.add(name);
         const capability = typeof item === "string" ? guessCapability(name) : item.capability || guessCapability(name);
-        const script = typeof item === "string" ? undefined : item.script?.trim() || undefined;
-        result.push({ name, capability, script });
+        const displayName = typeof item === "string" ? undefined : item.displayName?.trim() || undefined;
+        result.push({ name, capability, displayName });
     }
     return result;
 }
@@ -311,7 +318,8 @@ export function modelOptionLabel(config: AiConfig, value: string) {
     const decoded = decodeChannelModel(value);
     if (!decoded) return value;
     const channel = config.channels.find((item) => item.id === decoded.channelId);
-    return channel ? `${decoded.model}（${channel.name}）` : decoded.model;
+    const displayName = channel?.models.find((model) => model.name === decoded.model)?.displayName || decoded.model;
+    return channel ? `${displayName}（${channel.name}）` : displayName;
 }
 
 export function modelOptionsFromChannels(channels: ModelChannel[]) {

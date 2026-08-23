@@ -17,7 +17,7 @@ import { resolveImageUrl, uploadImage } from "@/services/image-storage";
 import { createVideoGenerationTask, pollVideoGenerationTask, storeGeneratedVideo, type VideoGenerationTask } from "@/services/api/video";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
-import { boolConfig, modelOptionLabel, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
+import { boolConfig, modelOptionLabel, modelOptionName, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { ReferenceImage } from "@/types/image";
 import i18n from "@/i18n";
@@ -182,7 +182,7 @@ export default function VideoPage() {
         const batchStartedAt = performance.now();
         setStartedAt(batchStartedAt);
         try {
-            const task = await createVideoGenerationTask(snapshot.config, snapshot.text, snapshot.references);
+            const task = await createVideoGenerationTask(snapshot.config, snapshot.text, { images: snapshot.references });
             const log = buildLog({ prompt: snapshot.text, model, config: snapshot.config, references: snapshot.references, durationMs: 0, status: "pending", task });
             await saveLog(log, false);
             void pollGenerationLog(log, snapshot.config, agentTaskId);
@@ -766,13 +766,14 @@ function buildLog({ prompt, model, config, references, durationMs, status, task,
 }
 
 function buildVideoConfig(config: AiConfig, model: string): AiConfig {
+    const miniMaxH3 = modelOptionName(model).toLowerCase() === "minimax-h3";
     return {
         ...config,
         model,
         videoModel: model,
-        size: normalizeVideoSize(config.size),
-        videoSeconds: normalizeVideoSeconds(config.videoSeconds),
-        vquality: normalizeResolution(config.vquality),
+        size: miniMaxH3 ? normalizeMiniMaxH3Ratio(config.size) : normalizeVideoSize(config.size),
+        videoSeconds: miniMaxH3 ? normalizeMiniMaxH3Seconds(config.videoSeconds) : normalizeVideoSeconds(config.videoSeconds),
+        vquality: miniMaxH3 ? normalizeMiniMaxH3Resolution(config.vquality) : normalizeResolution(config.vquality),
         videoGenerateAudio: String(boolConfig(config.videoGenerateAudio, true)),
         videoWatermark: String(boolConfig(config.videoWatermark, false)),
     };
@@ -786,6 +787,24 @@ function normalizeVideoSeconds(value: string) {
 
 function normalizeVideoSize(value: string) {
     return normalizeVideoSizeValue(value);
+}
+
+function normalizeMiniMaxH3Seconds(value: string) {
+    const seconds = Math.floor(Number(value) || 6);
+    return String(Math.max(4, Math.min(15, seconds)));
+}
+
+function normalizeMiniMaxH3Ratio(value: string) {
+    const ratios = ["adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"];
+    return value === "auto" ? "adaptive" : ratios.includes(value) ? value : "1:1";
+}
+
+function normalizeMiniMaxH3Resolution(value: string) {
+    const normalized = value.trim().toUpperCase().replace(/P$/, "");
+    if (normalized === "768") return "768P";
+    if (normalized === "1080") return "1080P";
+    if (normalized === "2K" || normalized === "2048") return "2K";
+    return "720P";
 }
 
 function normalizeResolution(value: string) {

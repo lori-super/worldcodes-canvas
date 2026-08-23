@@ -3,20 +3,23 @@ import { nanoid } from "nanoid";
 
 import i18n from "@/i18n";
 import { dataUrlToFile } from "@/lib/image-utils";
-import { uploadMediaFile, type UploadedFile } from "@/services/file-storage";
-import { imageToDataUrl } from "@/services/image-storage";
+import { getMediaBlob, uploadMediaFile, type UploadedFile } from "@/services/file-storage";
+import { getImageBlob, imageToDataUrl } from "@/services/image-storage";
 import { boolConfig, buildApiUrl, modelOptionName, resolveModelRequestConfig, resolveModelScript, type AiConfig } from "@/stores/use-config-store";
+import { deleteTemporaryMedia, uploadTemporaryMedia } from "./media-upload";
 import { runModelPlugin } from "./model-plugin";
 import type { ReferenceImage } from "@/types/image";
+import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
 
-type VideoResponse = { id: string; status?: string; error?: { message?: string }; url?: string; result_url?: string; video_url?: string; content?: { video_url?: string; url?: string } | null };
+type VideoResponse = { id?: string; task_id?: string; status?: string; error?: { message?: string }; url?: string; result_url?: string; video_url?: string; content?: { video_url?: string; url?: string } | null };
 type ApiVideoResponse = VideoResponse | { code?: number | string; data?: VideoResponse | null; msg?: string; message?: string; error?: { message?: string } };
 type ApiEnvelope<T> = T | { code?: number | string; data?: T | null; msg?: string; message?: string; error?: { message?: string } };
 type RequestOptions = { signal?: AbortSignal };
 const apiText = (key: string, options?: Record<string, unknown>) => i18n.t(`apiErrors.${key}`, options);
 
 export type VideoGenerationResult = { blob?: Blob; url?: string; mimeType?: string };
-export type VideoGenerationTask = { id: string; provider: "openai" | "plugin"; model: string };
+export type VideoGenerationReferences = { images?: ReferenceImage[]; videos?: ReferenceVideo[]; audios?: ReferenceAudio[] };
+export type VideoGenerationTask = { id: string; provider: "openai" | "plugin"; model: string; temporaryUploadIds?: string[] };
 export type VideoGenerationTaskState = { status: "pending" } | { status: "completed"; result: VideoGenerationResult } | { status: "failed"; error: string };
 
 /** Results for scripted (plugin) video models, which run their own create+poll in one shot at task creation. */
@@ -33,7 +36,7 @@ function aiHeaders(config: AiConfig, contentType?: string) {
     };
 }
 
-export async function requestVideoGeneration(config: AiConfig, prompt: string, references: ReferenceImage[] = [], options?: RequestOptions): Promise<VideoGenerationResult> {
+export async function requestVideoGeneration(config: AiConfig, prompt: string, references: VideoGenerationReferences = {}, options?: RequestOptions): Promise<VideoGenerationResult> {
     const task = await createVideoGenerationTask(config, prompt, references, options);
     for (let attempt = 0; attempt < 120; attempt += 1) {
         if (options?.signal?.aborted) throw new DOMException("Aborted", "AbortError");
@@ -46,13 +49,14 @@ export async function requestVideoGeneration(config: AiConfig, prompt: string, r
     throw new Error(apiText("videoTimeout", { provider: "" }));
 }
 
-export async function createVideoGenerationTask(config: AiConfig, prompt: string, references: ReferenceImage[] = [], options?: RequestOptions): Promise<VideoGenerationTask> {
+export async function createVideoGenerationTask(config: AiConfig, prompt: string, references: VideoGenerationReferences = {}, options?: RequestOptions): Promise<VideoGenerationTask> {
     const selectedModel = (config.model || config.videoModel).trim();
     const requestConfig = resolveModelRequestConfig(config, selectedModel);
     const script = resolveModelScript(config, selectedModel);
-    if (script) return createPluginVideoTask(requestConfig, selectedModel, script, prompt, references, options);
+    if (script) return createPluginVideoTask(requestConfig, selectedModel, script, prompt, references.images || [], options);
     assertVideoConfig(requestConfig, requestConfig.model);
-    return createOpenAIVideoTask(requestConfig, selectedModel, prompt, references, options);
+    if (isMiniMaxH3(requestConfig.model)) return createMiniMaxH3Task(requestConfig, selectedModel, prompt, references, options);
+    return createOpenAIVideoTask(requestConfig, selectedModel, prompt, references.images || [], options);
 }
 
 export async function pollVideoGenerationTask(config: AiConfig, task: VideoGenerationTask, options?: RequestOptions): Promise<VideoGenerationTaskState> {
@@ -116,6 +120,106 @@ export async function storeGeneratedVideo(result: VideoGenerationResult): Promis
     throw new Error(apiText("noPlayableVideo"));
 }
 
+type MiniMaxH3Content =
+    | { type: "text"; text: string }
+    | { type: "image_url"; upload_id?: string; image_url: { url?: string; role: "first_frame" | "last_frame" | "reference_image" } }
+    | { type: "video_url"; upload_id?: string; video_url: { url?: string; role: "reference_video" } }
+    | { type: "audio_url"; upload_id?: string; audio_url: { url?: string; role: "reference_audio" } };
+
+async function createMiniMaxH3Task(config: AiConfig, model: string, prompt: string, references: VideoGenerationReferences, options?: RequestOptions): Promise<VideoGenerationTask> {
+    if (!prompt.trim()) throw new Error(apiText("videoPromptRequired"));
+    const prepared = await prepareMiniMaxH3Content(config, prompt, references, options?.signal);
+    try {
+        const created = unwrapVideoResponse(
+            (
+                await axios.post<ApiVideoResponse>(
+                    aiApiUrl(config, "/videos"),
+                    {
+                        model: "MiniMax-H3",
+                        duration: normalizeMiniMaxH3Duration(config.videoSeconds),
+                        ratio: normalizeMiniMaxH3Ratio(config.size),
+                        resolution: normalizeMiniMaxH3Resolution(config.vquality),
+                        content: prepared.content,
+                    },
+                    { headers: aiHeaders(config, "application/json"), signal: options?.signal },
+                )
+            ).data,
+        );
+        const id = created.id || created.task_id;
+        if (!id) throw new Error(apiText("noVideoTaskId"));
+        return { id, provider: "openai", model, temporaryUploadIds: prepared.uploadIds };
+    } catch (error) {
+        const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+        if (!axios.isAxiosError(error) || (status !== undefined && status >= 400 && status < 500)) await deleteTemporaryMedia(config, prepared.uploadIds);
+        // A network error or 5xx may still have created the upstream task. Keep uploads until lifecycle expiry.
+        throw new Error(readAxiosError(error, apiText("videoTaskCreateFailed")));
+    }
+}
+
+async function prepareMiniMaxH3Content(config: AiConfig, prompt: string, references: VideoGenerationReferences, signal?: AbortSignal) {
+    const content: MiniMaxH3Content[] = [{ type: "text", text: prompt }];
+    const uploadIds: string[] = [];
+
+    try {
+        for (const image of references.images || []) {
+            const role = image.role || "reference_image";
+            const url = publicReferenceUrl(image.dataUrl || image.url);
+            if (url) {
+                content.push({ type: "image_url", image_url: { url, role } });
+                continue;
+            }
+            const blob = (image.storageKey ? await getImageBlob(image.storageKey) : null) || (await referenceBlob(image.dataUrl || image.url));
+            if (!blob) throw new Error(apiText("referenceImageReadFailed"));
+            const upload = await uploadTemporaryMedia(config, blob, image.name || "reference.png", signal);
+            uploadIds.push(upload.id);
+            content.push({ type: "image_url", upload_id: upload.id, image_url: { role } });
+        }
+
+        for (const video of references.videos || []) {
+            const url = publicReferenceUrl(video.url);
+            if (url) {
+                content.push({ type: "video_url", video_url: { url, role: "reference_video" } });
+                continue;
+            }
+            const blob = (video.storageKey ? await getMediaBlob(video.storageKey) : null) || (await referenceBlob(video.url));
+            if (!blob) throw new Error(apiText("invalidReferenceVideo"));
+            const upload = await uploadTemporaryMedia(config, blob, video.name || "reference.mp4", signal);
+            uploadIds.push(upload.id);
+            content.push({ type: "video_url", upload_id: upload.id, video_url: { role: "reference_video" } });
+        }
+
+        for (const audio of references.audios || []) {
+            const url = publicReferenceUrl(audio.url);
+            if (url) {
+                content.push({ type: "audio_url", audio_url: { url, role: "reference_audio" } });
+                continue;
+            }
+            const blob = (audio.storageKey ? await getMediaBlob(audio.storageKey) : null) || (await referenceBlob(audio.url));
+            if (!blob) throw new Error(apiText("invalidReferenceAudio"));
+            const upload = await uploadTemporaryMedia(config, blob, audio.name || "reference.mp3", signal);
+            uploadIds.push(upload.id);
+            content.push({ type: "audio_url", upload_id: upload.id, audio_url: { role: "reference_audio" } });
+        }
+        return { content, uploadIds };
+    } catch (error) {
+        await deleteTemporaryMedia(config, uploadIds);
+        throw error;
+    }
+}
+
+async function referenceBlob(value?: string) {
+    if (!value || isPublicMediaUrl(value)) return null;
+    try {
+        return await (await fetch(value)).blob();
+    } catch {
+        return null;
+    }
+}
+
+function publicReferenceUrl(value?: string) {
+    return value && /^https:\/\//i.test(value) ? value : "";
+}
+
 async function createOpenAIVideoTask(config: AiConfig, model: string, prompt: string, references: ReferenceImage[], options?: RequestOptions): Promise<VideoGenerationTask> {
     const body = new FormData();
     body.append("model", modelOptionName(model));
@@ -139,17 +243,29 @@ async function pollOpenAIVideoTask(config: AiConfig, task: VideoGenerationTask, 
     try {
         const video = unwrapVideoResponse((await axios.get<ApiVideoResponse>(aiApiUrl(config, `/videos/${task.id}`), { headers: aiHeaders(config), signal: options?.signal })).data);
         const url = videoResultUrl(video);
-        if (url) return { status: "completed", result: await videoResultFromUrl(url, options) };
-        if (video.status === "completed") {
+        if (url) {
+            const result = await videoResultFromUrl(url, options);
+            await cleanupTaskUploads(config, task);
+            return { status: "completed", result };
+        }
+        if (video.status === "completed" || video.status === "succeeded") {
             const content = await axios.get<Blob>(aiApiUrl(config, `/videos/${task.id}/content`), { headers: aiHeaders(config), responseType: "blob", signal: options?.signal });
             await assertVideoBlob(content.data);
+            await cleanupTaskUploads(config, task);
             return { status: "completed", result: { blob: content.data } };
         }
-        if (video.status === "failed" || video.status === "cancelled") return { status: "failed", error: readApiErrorMessage(video.error?.message) || apiText("videoGenerationFailed") };
+        if (video.status === "failed" || video.status === "cancelled") {
+            await cleanupTaskUploads(config, task);
+            return { status: "failed", error: readApiErrorMessage(video.error?.message) || apiText("videoGenerationFailed") };
+        }
         return { status: "pending" };
     } catch (error) {
         throw new Error(readAxiosError(error, apiText("videoTaskQueryFailed")));
     }
+}
+
+async function cleanupTaskUploads(config: AiConfig, task: VideoGenerationTask) {
+    if (task.temporaryUploadIds?.length) await deleteTemporaryMedia(config, task.temporaryUploadIds);
 }
 
 async function videoResultFromUrl(url: string, options?: RequestOptions): Promise<VideoGenerationResult> {
@@ -168,6 +284,37 @@ function assertVideoConfig(config: AiConfig, model: string) {
     if (!config.baseUrl.trim()) throw new Error(apiText("baseUrlRequired"));
     if (!config.apiKey.trim()) throw new Error(apiText("apiKeyRequired"));
     if (config.apiFormat === "gemini") throw new Error(apiText("geminiVideoUnsupported"));
+}
+
+function isMiniMaxH3(model: string) {
+    return modelOptionName(model).toLowerCase() === "minimax-h3";
+}
+
+function normalizeMiniMaxH3Duration(value: string) {
+    const seconds = Math.floor(Number(value) || 6);
+    return Math.max(4, Math.min(15, seconds));
+}
+
+function normalizeMiniMaxH3Ratio(value: string) {
+    const supported = ["adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"] as const;
+    if (value === "auto") return "adaptive";
+    if (supported.includes(value as (typeof supported)[number])) return value;
+    const match = value.match(/^(\d+)x(\d+)$/);
+    if (!match) return "1:1";
+    const target = Number(match[1]) / Number(match[2]);
+    return supported.slice(1).reduce((best, ratio) => {
+        const [width, height] = ratio.split(":").map(Number);
+        const [bestWidth, bestHeight] = best.split(":").map(Number);
+        return Math.abs(width / height - target) < Math.abs(bestWidth / bestHeight - target) ? ratio : best;
+    });
+}
+
+function normalizeMiniMaxH3Resolution(value: string) {
+    const normalized = value.trim().toUpperCase().replace(/P$/, "");
+    if (normalized === "768") return "768P";
+    if (normalized === "1080") return "1080P";
+    if (normalized === "2K" || normalized === "2048") return "2K";
+    return "720P";
 }
 
 function normalizeVideoSeconds(value: string) {
