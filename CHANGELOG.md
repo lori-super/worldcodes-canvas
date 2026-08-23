@@ -4,6 +4,7 @@
 
 + [新增] 默认接入同源 WorldCodes Relay，预置 Grok Imagine、GPT Image 2、Nano Banana 2 和 MiniMax H3，并支持画布参考图、音频、视频临时直传生成。
 + [调整] 移除远程节点插件、模型自定义脚本和 URL API Key 注入入口，避免动态代码或链接参数接触浏览器本地保存的凭据。
++ [修复] 修复全新浏览器初始化默认渠道时遗漏 Grok Imagine 和 Nano Banana 2 预设的问题。
 
 ## v0.16.0 - 2026-08-18
 
