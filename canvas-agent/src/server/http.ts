@@ -432,13 +432,11 @@ export function startHttpServer() {
     });
 
     app.listen(port, "127.0.0.1", () => {
-        console.log("Infinite Canvas Agent");
+        console.log("WorldCodes Canvas Agent");
         checkVersions();
         console.log(`Local URL: ${config.url}`);
         console.log(`Connect token: ${config.token}`);
-        console.log("Codex MCP is not installed by this command.");
-        console.log("Optional MCP add: codex mcp add infinite-canvas -- npx -y @basketikun/canvas-agent mcp");
-        console.log("Remove manually added MCP: codex mcp remove infinite-canvas");
+        console.log("WorldCodes MCP distribution is disabled until the official package is released.");
         if (logger.enabled) console.log(`Debug log: ${logger.filePath}`);
         logger.info("Canvas Agent started", { url: config.url, workspace: ensureSiteWorkspace(config).workspacePath, debugLog: logger.filePath });
         const activeThreadId = initialWorkspace.activeThreadId || "";

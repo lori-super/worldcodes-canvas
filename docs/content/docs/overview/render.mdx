@@ -1,16 +1,12 @@
 ---
-title: Deploy on Render
-description: Deploy Infinite Canvas with Render
+title: Static Hosting
+description: Boundary between static hosting and WorldCodes Relay
 ---
 
-# Deploy on Render
+# Static Hosting
 
-[Deploy to Render](https://render.com/deploy?repo=https://github.com/basketikun/infinite-canvas)
+Vercel, Render, or a plain static container can host the Canvas interface for preview. Default models use the same-origin WorldCodes Relay; image, video, text, and audio generation will not work unless the platform provides the same audited reverse proxy for `/v1/*` and `/v1beta/*`.
 
-1. Select **Deploy to Render**.
-2. Sign in and connect GitHub as prompted.
-3. Confirm the deployment.
+WorldCodes production uses the `canvas.worldcodes.online` subdomain on the Relay server. Caddy allows only approved API paths and direct browser upload to short-lived private R2 URLs.
 
-When deployment finishes, open the assigned `.onrender.com` domain.
-
-The default configuration uses Render's free Web Service. It sleeps after a period of inactivity and wakes on the next request. Application data is primarily stored in the browser, and prompt repositories are fetched by the frontend. The free tier is suitable for evaluation and demos; use Vercel or configure WebDAV for longer-term use.
+Do not treat a static one-click deployment as a complete production setup. Follow the audited contract under `deploy/worldcodes/`.

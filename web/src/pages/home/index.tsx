@@ -58,7 +58,7 @@ export default function IndexPage() {
                     </div>
                 </div>
 
-                <section className="relative mx-auto mb-20 max-w-6xl border-t border-stone-200 pt-12 dark:border-stone-800">
+                {promptShowcase.length ? <section className="relative mx-auto mb-20 max-w-6xl border-t border-stone-200 pt-12 dark:border-stone-800">
                     <div className="mb-8 grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-start">
                         <div />
                         <div className="max-w-2xl text-center">
@@ -99,7 +99,7 @@ export default function IndexPage() {
                             </button>
                         ))}
                     </div>
-                </section>
+                </section> : null}
             </section>
             <Image.PreviewGroup
                 preview={{

@@ -9,6 +9,7 @@
 - Caddy 主配置：`/etc/caddy/Caddyfile`
 - Canvas 片段：`/etc/caddy/Caddyfile.canvas`
 - 当前 Relay：`127.0.0.1:3000`
+- 候选测试 Relay：`127.0.0.1:33102`（仅真实验收期间使用）
 - Sub2API 切换后：`127.0.0.1:8080`
 - `3001` 是 WireGuard 私网入口，不得用于公开 Canvas
 
@@ -33,7 +34,7 @@ Caddy 只用一个 `reverse_proxy` handler，并同时匹配 HTTP 方法与路�
 
 其他 `/v1/*`、`/v1beta/*`、`/api/*` 或错误方法固定返回 `404`，不会落到 SPA。`/v1/responses` 和 `/v1/audio/speech` 分别供默认文本与语音节点使用；`/v1beta/models/*` 供 `nano-banana-2` 的 Gemini-compatible 生图调用。API 仍由 Relay 的 Bearer API Key 或该兼容接口要求的 `x-goog-api-key` 鉴权和计费，Caddy 不持有用户密钥。
 
-CSP 只允许请求同源 API 和一个精确 R2 S3 Origin；图片、音频、视频可从 HTTPS 地址展示。未放行 `unsafe-eval`、任意 API Origin、远程模型脚本、远程插件、WebDAV 或统计脚本。当前上游主题初始化仍是内联脚本，因此暂时保留 `script-src 'unsafe-inline'`。
+CSP 只允许请求同源 API、一个精确 R2 S3 Origin，以及内置提示词 JSON 使用的 `https://raw.githubusercontent.com`；该域名只用于读取数据，不提供页面跳转。图片、音频、视频可从 HTTPS 地址展示。未放行 `unsafe-eval`、任意模型 API Origin、远程模型脚本、远程插件、WebDAV 或统计脚本。当前主题初始化仍是内联脚本，因此暂时保留 `script-src 'unsafe-inline'`。
 
 ## R2 临时素材桶
 
@@ -79,6 +80,8 @@ export WORLDCODES_CANVAS_RELAY_PORT=3000
 sudo --preserve-env=WORLDCODES_CANVAS_R2_ORIGIN,WORLDCODES_CANVAS_RELAY_PORT \
   deploy/worldcodes/install-canvas-caddy.sh --check
 ```
+
+真实验收期间可临时改为 `33102`，让 Canvas 同源 API 指向保留的新测试站 B；验收结束后必须重新安装为 `3000`，不得把候选端口当作长期生产拓扑。
 
 检查结果会输出当前主 Caddy hash、加入 import 后的新 hash 和 Canvas fragment hash。确认现状未漂移后再安装：
 

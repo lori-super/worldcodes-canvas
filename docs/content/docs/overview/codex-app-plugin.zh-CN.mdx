@@ -1,140 +1,38 @@
 ---
-title: Codex App 插件
-description: 在 Codex App 中安装并使用 Infinite Canvas 插件
+title: 本地 Agent
+description: WorldCodes Canvas 本地 Agent 的定位与启用条件
 ---
 
-# Codex App 插件
+# 本地 Agent
 
-Infinite Canvas 提供了一个 Codex App 插件，用来把 Codex 和本地 Canvas Agent 连接起来。安装后，你可以直接在 Codex 中说“打开 Infinite Canvas”，让 Codex 打开画布、读取节点、创建节点并触发生成流程。
+WorldCodes Canvas Agent 是可选的本地桥接器，用来让 Codex 读取和操作当前画布。图片生成、视频生成、参考素材和 R2 临时上传都不依赖 Agent。
 
-插件源码位于仓库的 `plugins/infinite-canvas/` 目录。
+## 为什么不能放在 Relay
 
-## 安装方式
+Agent 需要访问用户电脑上的 Codex 登录状态、Skills、工作区和本地文件。把它作为多人共享服务放到 Relay 会失去这些本机能力，也会带来账号与文件隔离风险。因此：
 
-### 让 Codex 自动安装
+- Canvas Web 与 Relay 可以部署在服务器。
+- Agent 只能运行在每位用户自己的电脑。
+- 网页仅通过 localhost 与该用户的 Agent 通信。
 
-把下面这段发给 Codex：
+## 当前状态
 
-```text
-请从 https://github.com/basketikun/infinite-canvas.git 安装 Infinite Canvas Codex 插件。
-请 clone 仓库到 ~/plugins/infinite-canvas，确认 plugins/infinite-canvas/.codex-plugin/plugin.json 存在，
-把 plugins/infinite-canvas 加入 personal marketplace，先运行 codex plugin marketplace add ~，
-再运行 codex plugin add infinite-canvas@personal。
-安装后请校验插件，并告诉我是否需要开启一个新对话来加载新技能和 MCP 工具。
-```
+WorldCodes 自有 Agent 安装包和 Codex 插件尚未发布。主站默认隐藏 Agent 入口，插件市场与 MCP 自动启动配置也已关闭，避免用户误装第三方包。
 
-这种方式适合不想手动改 marketplace 配置的用户。Codex 会完成 clone、写入 marketplace、安装插件和基础校验。
-
-### 手动安装
-
-推荐把仓库 clone 到 Codex personal marketplace 默认会引用的位置：
+如需内部开发，可从本地源码构建 Agent：
 
 ```bash
-mkdir -p ~/plugins
-git clone https://github.com/basketikun/infinite-canvas.git ~/plugins/infinite-canvas
+cd /absolute/path/to/worldcodes-canvas/canvas-agent
+npm install
+npm run build
+node dist/index.js
 ```
 
-确保 `~/.agents/plugins/marketplace.json` 中有 Infinite Canvas 条目。这里的 `path` 要指向仓库里的插件子目录：
+MCP ID `infinite-canvas` 与本地目录 `~/.infinite-canvas` 暂时作为兼容标识保留，避免已有用户配置和数据失效；它们不会显示为站点品牌。
 
-```json
-{
-  "name": "personal",
-  "interface": {
-    "displayName": "Personal"
-  },
-  "plugins": [
-    {
-      "name": "infinite-canvas",
-      "source": {
-        "source": "local",
-        "path": "./plugins/infinite-canvas/plugins/infinite-canvas"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Productivity"
-    }
-  ]
-}
-```
+## 正式开放条件
 
-然后注册 personal marketplace 并安装插件：
-
-```bash
-codex plugin marketplace add ~
-codex plugin add infinite-canvas@personal
-```
-
-安装完成后，建议新建一个 Codex 对话，让新的 skill 和 MCP 工具完整加载。
-
-### 本仓库开发调试安装
-
-如果你正在 Infinite Canvas 仓库中开发插件，可以直接使用仓库自带的 marketplace：
-
-```bash
-cd /path/to/infinite-canvas
-codex plugin marketplace add "$(pwd)"
-codex plugin add infinite-canvas@infinite-canvas-local
-```
-
-仓库内的 `.agents/plugins/marketplace.json` 已经指向 `./plugins/infinite-canvas`，适合开发者本地调试。
-
-## 使用插件
-
-新建 Codex 对话后，可以直接说：
-
-```text
-打开 Infinite Canvas 新建画布 并连接好Codex
-```
-
-插件会启动本地 Canvas Agent，读取连接地址和 token，然后在右侧打开 `https://canvas.best/` 并自动新建、连接画布。只有明确要求使用本地项目时，插件才会启动本地前端。
-
-画布打开后可以继续让 Codex 操作画布：
-
-```text
-读取当前画布并总结节点结构
-根据选中节点创建一组生图提示词
-把这些节点整理成一个生成流程
-```
-
-## 更新插件
-
-普通业务代码变更通常不需要更新插件。只有改了下面这些内容时，才建议重新安装或刷新插件：
-
-- `plugins/infinite-canvas/.codex-plugin/plugin.json`
-- `plugins/infinite-canvas/.mcp.json`
-- `plugins/infinite-canvas/skills/` 下的技能说明
-- 插件暴露的 MCP、app 或入口脚本
-
-重新安装后建议开启新对话，避免旧对话继续使用缓存中的技能和 MCP 工具。
-
-## 手动排查
-
-插件默认通过下面的 MCP 命令启动 Canvas Agent：
-
-```bash
-npx -y @basketikun/canvas-agent mcp
-```
-
-如果需要手动排查，先启动画布：
-
-```bash
-cd web
-bun install
-bun run dev
-```
-
-然后启动本地 Agent：
-
-```bash
-npx -y @basketikun/canvas-agent
-```
-
-从 Agent 输出或 `http://127.0.0.1:17371/config` 读取本地地址和 token 后，打开：
-
-```text
-<画布网页地址>/canvas?mode=new&agentUrl=<Local URL>&agentToken=<Connect token>
-```
-
-`mode=new` 会让网页自动创建具体画布并连接本地 Agent，不需要手动点击“新建画布”。
+1. 发布 `@worldcodes/canvas-agent`。
+2. 发布 WorldCodes Codex 插件并配置自有站点。
+3. 完成版本更新、签名和安装说明。
+4. 在 Web 构建环境设置 `VITE_AGENT_ENABLED=true`。

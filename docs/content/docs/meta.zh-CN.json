@@ -3,10 +3,6 @@
   "root": true,
   "pages": [
     "overview",
-    "canvas",
-    "development",
-    "progress",
-    "business",
-    "support"
+    "canvas"
   ]
 }

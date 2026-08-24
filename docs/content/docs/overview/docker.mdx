@@ -1,62 +1,45 @@
 ---
 title: Docker Deployment
-description: Deploy Infinite Canvas with Docker Compose
+description: Build the WorldCodes Canvas static frontend from current source
 ---
 
 # Docker Deployment
 
-## Use the published image
+## Build the static frontend
 
 ```bash
-git clone git@github.com:basketikun/infinite-canvas.git
-cd infinite-canvas
-docker compose up -d
+cd /path/to/worldcodes-canvas
+docker compose up -d --build
 ```
 
-Open `http://localhost:3000`.
+This builds the `worldcodes-canvas` container only from current source and never pulls another project's prebuilt image. Open `http://localhost:3000`.
 
-## Build locally
+Or build it directly:
 
 ```bash
-docker compose -f docker-compose.local.yml up -d --build
+docker build -t worldcodes-canvas:local .
+docker run --rm -p 3000:3000 worldcodes-canvas:local
 ```
 
-## Documentation image
+## Important boundary
 
-The documentation in `docs/` is a separate Next.js standalone application with server capabilities.
+The root image contains only the Vite static frontend, not WorldCodes Relay. It is suitable for interface preview. Full production generation also requires:
+
+- Same-origin Caddy routes for approved `/v1/*` and `/v1beta/*` requests.
+- Relay model routing and user authentication.
+- A private temporary R2 bucket for MiniMax H3 references.
+
+The audited production contract is under `deploy/worldcodes/`. Never place provider API keys inside the static container.
+
+## Data
+
+Canvases, assets, generation history, and the prompt cache remain in browser IndexedDB, so the static container needs no persistent volume. The production prompt library contacts only fixed read-only JSON sources, and local reference bytes go directly to temporary R2 only when generation requires it.
+
+## Standalone documentation
 
 ```bash
 cd docs
-docker compose up -d
+docker compose up -d --build
 ```
 
-To build it from the current source:
-
-```bash
-cd docs
-docker compose -f docker-compose.local.yml up -d --build
-```
-
-The main application container only runs Next.js. Canvases, My Assets, generation history, and API keys are stored in the browser by default, while prompt repositories are fetched directly by the frontend. No persistent data volume is required for this data.
-
-## Optional analytics
-
-No analytics are enabled by default. A deployment can enable GA4, Baidu Analytics, or both at runtime:
-
-| Variable | Description |
-| --- | --- |
-| `ANALYTICS_GA4_ID` | Google Analytics 4 measurement ID (`G-XXXX`) |
-| `ANALYTICS_BAIDU_ID` | Baidu site ID, the hash after `hm.js?` |
-
-```yaml
-services:
-  app:
-    image: ghcr.io/basketikun/infinite-canvas:latest
-    ports:
-      - "3000:3000"
-    environment:
-      ANALYTICS_GA4_ID: G-XXXXXXXXXX
-      ANALYTICS_BAIDU_ID: e8263761cc5c32f5f7a855b8203b965a
-```
-
-SPA route changes automatically report page views to enabled providers. Only configure analytics IDs on sites you control, and do not commit them to the repository.
+The Next.js documentation service is separate and does not include the model Relay.

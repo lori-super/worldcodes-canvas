@@ -1,31 +1,5 @@
-# Infinite Canvas Codex Plugin
+# WorldCodes Canvas Codex Plugin
 
-让 Codex 可以打开并操作 Infinite Canvas。
+该目录保留 WorldCodes Canvas Codex 插件的开发源码。自有 Agent 包和插件市场发布前，插件分发已关闭，不提供安装命令，也不会调用上游包或站点。
 
-## 安装
-
-macOS / Linux：
-
-```bash
-git clone https://github.com/basketikun/infinite-canvas.git
-cd infinite-canvas
-codex plugin marketplace add "$(pwd)"
-codex plugin add infinite-canvas@infinite-canvas-local
-```
-
-Windows PowerShell：
-
-```powershell
-git clone https://github.com/basketikun/infinite-canvas.git
-cd infinite-canvas
-codex plugin marketplace add "$PWD"
-codex plugin add infinite-canvas@infinite-canvas-local
-```
-
-Windows CMD 将 `$PWD` 替换为 `%cd%`。
-
-安装后新建一个 Codex 任务，然后输入：
-
-```text
-帮我打开并连接到 Infinite Canvas
-```
+正式启用前需发布 `@worldcodes/canvas-agent`，配置 WorldCodes 站点地址，并恢复经过验证的 MCP 与 Skills 清单。

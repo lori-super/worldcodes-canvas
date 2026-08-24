@@ -1,64 +1,58 @@
 ---
 title: Features
-description: Major features available in the current project
+description: Canvas, model, asset, and local capabilities in WorldCodes Canvas
 ---
 
 # Features
 
-## Canvas projects
+## Canvas and nodes
 
-- Create, rename, duplicate, delete, import, and export canvas projects.
-- Persist projects in the browser and optionally synchronize them with WebDAV.
-- Keep viewport, background, nodes, connections, and assistant sessions with each project.
+- Create, rename, import, export, and delete canvas projects.
+- Pan, zoom, select, connect, use the minimap, undo and redo.
+- Work with text, image, video, audio, generation, and group nodes.
+- Connect prompts and references into editable generation workflows.
+- Download results or save them to the browser-based asset library.
 
-## Infinite canvas
+Projects, assets, and generation history are stored in this browser's IndexedDB. Clearing site data removes them.
 
-- Pan, zoom, reset the view, select multiple nodes, copy and paste, undo and redo.
-- Drag files onto the canvas and use lines, dots, or a blank background.
-- Export the entire canvas or selected elements with their resources.
+## WorldCodes Relay models
 
-## Nodes and workflows
+Production calls only the same-origin WorldCodes Relay:
 
-- Text, image, video, and generation-configuration nodes.
-- Connect text prompts and reference media to generation nodes.
-- Generate or rewrite text, create images, edit images from references, and create videos.
-- Preserve original image ratios by default and organize batch results as connected nodes.
-- Record prompts, models, dimensions, quality, and references on generated nodes for retries.
+- Grok Imagine, GPT Image 2, and Nano Banana 2 for images.
+- MiniMax H3 for video with image, video, and audio references.
+- Same-origin Responses and Speech endpoints for text and audio.
 
-## AI generation
+The browser stores and sends the user's WorldCodes API key. Provider credentials, routing, and billing mappings remain inside Relay. Production CSP prevents the browser from bypassing Relay to contact arbitrary model providers.
 
-- Connect to user-provided OpenAI-compatible endpoints directly from the browser.
-- Configure multiple channels, fetch or enter model names, and choose default text, image, and video models.
-- Support image count, aspect ratio, quality, transparent backgrounds, reasoning effort, and custom invocation scripts.
-- Support OpenAI-style video endpoints.
+## References and R2
 
-## Canvas Agent
+- Local reference media remains in browser storage while editing.
+- Public references can be submitted directly.
+- When MiniMax H3 needs public access, Relay issues a short-lived upload URL and the browser uploads bytes directly to private temporary R2 storage.
+- Relay receives only the upload ID, never the media bytes.
+- Terminal jobs clean up objects; an R2 lifecycle rule handles abandoned jobs.
 
-- Connect local Codex through Canvas Agent and MCP without giving a web server direct access to browser state.
-- Read the active canvas, selection, nodes, edges, generation status, and apply structured operations.
-- Use Codex from the browser side panel with streaming responses, history, approvals, permissions, diagnostics, and local Skills.
-- Isolate active canvases and turns across multiple browser tabs.
+## Prompts and plugins
 
-See [Codex App Plugin](/docs/overview/codex-app-plugin) for installation and usage.
+The prompt library supports search, filters, details, copy, and asset import. WorldCodes production includes seven audited read-only JSON sources cached in browser IndexedDB. The UI provides no external repository navigation, and production CSP allows only the fixed data origin.
 
-## Plugin system
-
-Canvas plugins can contribute node types, rendering, inspectors, serialization, migration, toolbar actions, and optional AI generation capabilities. Built-in and local plugins are managed through the canvas UI.
-
-## Prompts and assets
-
-- Synchronize supported public prompt repositories and add custom standard JSON sources.
-- Search across enabled sources, filter by tags, inspect prompt details, copy prompts, and insert them into the canvas.
-- Store reusable images, videos, audio, and prompt assets in the browser.
+Built-in and local node plugins remain available. Production does not execute remotely downloaded plugin JavaScript.
 
 ## Configuration and synchronization
 
-- Export and import channel, model, generation, prompt-source, and WebDAV settings.
-- Store application data and API credentials locally in the browser.
-- Use WebDAV for optional cross-device synchronization.
+- Settings can be imported and exported; exported credentials must not be shared.
+- Production model traffic is fixed to the same-origin Relay.
+- WebDAV and arbitrary external Base URLs remain self-hosting compatibility options, but WorldCodes production CSP does not allow those external origins.
+
+## Local Agent
+
+The optional Agent needs each user's local Codex, Skills, and workspace and therefore cannot run as a shared Relay service. It remains hidden until a WorldCodes-owned package is released; core generation does not depend on it.
+
+See [Local Agent](/docs/overview/codex-app-plugin).
 
 ## Current limitations
 
-- The project is frontend-first and does not provide built-in cloud accounts or cloud storage.
-- API keys remain in browser storage and requests are sent directly to configured providers.
-- Production Docker static-resource paths still require broader deployment verification.
+- Browser data is not synchronized across devices automatically.
+- A static local preview does not include Relay; generation requires a same-origin reverse proxy or an explicitly allowed self-hosted endpoint.
+- The canvas is optimized for desktop use.

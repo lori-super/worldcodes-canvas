@@ -1,28 +1,12 @@
 ---
-title: Render 部署
-description: 使用 Render 部署无限画布
+title: 静态托管说明
+description: Vercel、Render 等静态托管与 WorldCodes Relay 的边界
 ---
 
-# Render 部署
+# 静态托管说明
 
-点击下面链接即可部署到 Render：
+Vercel、Render 或普通静态容器只能托管 Canvas 前端，可用于界面预览。WorldCodes 默认模型使用同源 Relay；如果托管平台没有为 `/v1/*`、`/v1beta/*` 配置相同的受控反向代理，图片、视频、文本和音频生成都不可用。
 
-[部署到 Render](https://render.com/deploy?repo=https://github.com/basketikun/infinite-canvas)
+WorldCodes 正式部署使用 `canvas.worldcodes.online` 与 Relay 同机子域名方案，Caddy 只放行经过审计的 API 路径，并允许浏览器向私有 R2 预签名地址上传临时素材。
 
-## 部署步骤
-
-1. 点击 `Deploy to Render`。
-2. 登录 Render，并按页面提示连接 GitHub。
-3. 确认部署。
-
-部署完成后，打开 Render 分配的 `.onrender.com` 域名即可访问。
-
-## 免费版说明
-
-默认使用 Render 免费 Web Service：
-
-- 空闲约 15 分钟后会休眠，下次访问会自动唤醒。
-- 当前主应用数据默认保存在浏览器本地；第三方提示词由浏览器前端直连拉取。
-- 适合体验和演示，不适合长期保存正式数据。
-
-长期使用建议优先部署到 Vercel，或自行配置 WebDAV 同步浏览器本地数据。
+因此不要把原来的“一键部署静态前端”当作完整生产方案。完整步骤以仓库 `deploy/worldcodes/` 的部署合同为准。

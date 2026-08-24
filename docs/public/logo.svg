@@ -1,4 +1,14 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M32 8L58 54H46L32 29L18 54H6L32 8Z" fill="currentColor"/>
-  <path d="M32 40L40 54H24L32 40Z" fill="currentColor"/>
+  <title>WorldCodes Canvas</title>
+  <defs>
+    <linearGradient id="worldcodes-gradient" x1="8" y1="12" x2="56" y2="52" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#06B6D4"/>
+      <stop offset="0.52" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#7C3AED"/>
+    </linearGradient>
+  </defs>
+  <path d="M10 15L20 49L32 30L44 49L54 15" stroke="url(#worldcodes-gradient)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="10" cy="15" r="4.5" fill="#06B6D4"/>
+  <circle cx="32" cy="30" r="4.5" fill="#2563EB"/>
+  <circle cx="54" cy="15" r="4.5" fill="#7C3AED"/>
 </svg>

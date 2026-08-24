@@ -18,7 +18,7 @@ Required for --apply:
       Current /etc/caddy/Caddyfile SHA-256. This prevents overwriting drift.
 
 Optional environment:
-  WORLDCODES_CANVAS_RELAY_PORT   Relay loopback port: 3000 (current) or 8080 (Sub2API)
+  WORLDCODES_CANVAS_RELAY_PORT   Relay loopback port: 3000 (production), 33102 (candidate test), or 8080 (Sub2API)
 
 Options:
   --template PATH      Canvas fragment template
@@ -83,8 +83,8 @@ if [[ ! "$r2_origin" =~ ^https://[0-9a-f]{32}\.r2\.cloudflarestorage\.com$ ]]; t
 	echo "WORLDCODES_CANVAS_R2_ORIGIN must be one exact R2 S3 HTTPS origin" >&2
 	exit 1
 fi
-if [[ "$relay_port" != "3000" && "$relay_port" != "8080" ]]; then
-	echo "WORLDCODES_CANVAS_RELAY_PORT must be 3000 or 8080" >&2
+if [[ "$relay_port" != "3000" && "$relay_port" != "33102" && "$relay_port" != "8080" ]]; then
+	echo "WORLDCODES_CANVAS_RELAY_PORT must be 3000, 33102, or 8080" >&2
 	exit 1
 fi
 if [[ -n "$expected_main_hash" && ! "$expected_main_hash" =~ ^[0-9a-f]{64}$ ]]; then

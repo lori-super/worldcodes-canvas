@@ -1,41 +1,30 @@
-# Infinite Canvas Documentation Index
+# WorldCodes Canvas Documentation Index
 
-## Overview
+## Core guides
 
 - [Quick Start](/docs/overview/quick-start)
 - [Features](/docs/overview/features)
-- [Deploy on Render](/docs/overview/render)
 - [Docker Deployment](/docs/overview/docker)
-- [Third-party GitHub Prompt Repositories](/docs/overview/third-party-prompt-repositories)
+- [Static Hosting Boundary](/docs/overview/render)
+- [Local Agent](/docs/overview/codex-app-plugin)
 
-## Canvas Guide
+## Canvas and development
 
 - [Canvas Node Guide](/docs/canvas/canvas-node-manual)
 - [Canvas Shortcuts](/docs/canvas/canvas-shortcuts)
-
-## Development and Data
-
 - [Local Development](/docs/development/local-development)
 - [Canvas Data Structure](/docs/development/canvas-data-structure)
-- [How the Local Codex Connection Works](/docs/development/local-codex-canvas)
+- [Local Codex Connection](/docs/development/local-codex-canvas)
 
-## Business
+## Security and license
 
 - [Open-source License](/docs/business/license)
-- [Business Cooperation](/docs/business/business)
-
-## Support and Security
-
 - [Report a Vulnerability](/docs/support/security)
-- [Sponsor the Project](/docs/support/sponsor)
 
-## Project Progress
+## Runtime boundaries
 
-- [Changelog](/docs/progress/changelog)
-- [Pending Tests](/docs/progress/pending-test)
-- [TODO](/docs/progress/todo)
-
-## Notes
-
-- Canvas projects and My Assets are primarily stored in the browser. WebDAV can be configured for cross-device synchronization.
-- The AI API key is stored in the browser, which sends requests directly to OpenAI-compatible endpoints.
+- Production model traffic uses only the same-origin WorldCodes Relay.
+- The user's WorldCodes API key stays in the browser; provider credentials and routing remain inside Relay.
+- Canvas data and assets primarily remain in browser IndexedDB.
+- Local reference media uploads directly to private temporary R2 objects only when generation requires it.
+- The prompt library includes seven audited read-only JSON sources without external repository navigation; production still blocks external WebDAV and arbitrary model endpoints.

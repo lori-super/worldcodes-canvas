@@ -1,11 +1,9 @@
 ---
 title: Local Development
-description: Frontend-first local development
+description: Local boundaries between the WorldCodes Canvas frontend, Relay, and documentation
 ---
 
 # Local Development
-
-The main application lives in `web/`. The browser sends AI requests directly to the user's OpenAI-compatible endpoint.
 
 ## Start the frontend
 
@@ -15,17 +13,21 @@ bun install
 bun run dev
 ```
 
-Open `http://localhost:3000`, then enter your `Base URL`, `API Key`, and model names in Settings. Prompt sources and WebDAV are also accessed directly by the browser.
+Open `http://localhost:3000`. Vite does not include Relay, so default same-origin model requests reach the frontend server and local mode is interface-only by default.
 
-## Start the documentation site
+To test generation, configure a same-origin reverse proxy in a controlled environment or explicitly use a CORS-enabled test Relay. Never place provider credentials in frontend source or build variables.
+
+## Start the documentation
 
 ```bash
 cd docs
+bun install
 bun run dev
 ```
 
 Common locations:
 
-- Canvas, pages, and interactions: `web/`
-- Prompt caching: `web/src/services/api/prompts.ts`
-- Documentation content: `docs/content/docs/`
+- Canvas and pages: `web/`
+- Same-origin model requests: `web/src/services/api/`
+- Production routing and R2: `deploy/worldcodes/`
+- Documentation: `docs/content/docs/`

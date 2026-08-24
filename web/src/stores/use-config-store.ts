@@ -120,7 +120,7 @@ export const defaultWebdavSyncConfig: WebdavSyncConfig = {
     url: "",
     username: "",
     password: "",
-    directory: "infinite-canvas",
+    directory: "worldcodes-canvas",
     lastSyncedAt: "",
 };
 

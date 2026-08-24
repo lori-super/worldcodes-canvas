@@ -3,7 +3,9 @@
 ## Unreleased
 
 + [新增] 默认接入同源 WorldCodes Relay，预置 Grok Imagine、GPT Image 2、Nano Banana 2 和 MiniMax H3，并支持画布参考图、音频、视频临时直传生成。
++ [调整] 全站更名为 WorldCodes Canvas，移除上游站点跳转并新增站内使用文档；Agent 在自有安装包发布前默认隐藏。
 + [调整] 移除远程节点插件、模型自定义脚本和 URL API Key 注入入口，避免动态代码或链接参数接触浏览器本地保存的凭据。
++ [修复] 恢复 7 组内置提示词数据源，同时保持来源详情与帮助入口只在站内导航。
 + [修复] 修复全新浏览器初始化默认渠道时遗漏 Grok Imagine 和 Nano Banana 2 预设的问题。
 
 ## v0.16.0 - 2026-08-18
