@@ -29,7 +29,7 @@ The browser stores and sends the user's WorldCodes API key. Provider credentials
 
 - Local reference media remains in browser storage while editing.
 - Public references can be submitted directly.
-- When MiniMax H3 needs public access, Relay issues a short-lived upload URL and the browser uploads bytes directly to private temporary R2 storage.
+- When MiniMax H3 needs public access, Relay issues a short-lived upload URL, the browser uploads directly to temporary R2 storage, and PixStag reads through the short media domain.
 - Relay receives only the upload ID, never the media bytes.
 - Terminal jobs clean up objects; an R2 lifecycle rule handles abandoned jobs.
 

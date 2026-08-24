@@ -7,6 +7,6 @@ description: Boundary between static hosting and WorldCodes Relay
 
 Vercel, Render, or a plain static container can host the Canvas interface for preview. Default models use the same-origin WorldCodes Relay; image, video, text, and audio generation will not work unless the platform provides the same audited reverse proxy for `/v1/*` and `/v1beta/*`.
 
-WorldCodes production uses the `canvas.worldcodes.online` subdomain on the Relay server. Caddy allows only approved API paths and direct browser upload to short-lived private R2 URLs.
+WorldCodes production uses the `canvas.worldcodes.online` subdomain on the Relay server. Caddy allows only approved API paths and direct browser upload to short-lived signed R2 URLs.
 
 Do not treat a static one-click deployment as a complete production setup. Follow the audited contract under `deploy/worldcodes/`.

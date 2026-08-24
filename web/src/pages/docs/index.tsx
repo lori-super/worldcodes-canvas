@@ -107,7 +107,7 @@ export default function DocsPage() {
                                 {chinese ? "本地参考图片、音频和视频保存在当前浏览器的 IndexedDB，不经过站点应用服务器。清理浏览器数据会删除这些本地素材。" : "Local image, audio, and video references are stored in this browser's IndexedDB and do not pass through the application server. Clearing browser data removes them."}
                             </InfoCard>
                             <InfoCard title={chinese ? "生成期间：R2 临时对象" : "During generation: temporary R2 objects"}>
-                                {chinese ? "MiniMax H3 需要公网可读参考素材时，Relay 只签发上传地址；浏览器直接上传到 R2。任务结束后清理，异常任务按生命周期自动过期。" : "When MiniMax H3 needs public references, Relay only issues a signed upload URL and the browser uploads directly to R2. Objects are removed after the task or expire automatically."}
+                                {chinese ? "MiniMax H3 需要公网可读参考素材时，Relay 只签发上传地址；浏览器直接上传到 R2，PixStag 通过短读取域名访问临时对象。任务结束后清理，异常任务按生命周期自动过期。" : "When MiniMax H3 needs public references, Relay issues a signed upload URL, the browser uploads directly to R2, and PixStag reads temporary objects through the short media domain. Objects are removed after the task or expire automatically."}
                             </InfoCard>
                         </div>
                     </section>

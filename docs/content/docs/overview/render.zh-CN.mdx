@@ -7,6 +7,6 @@ description: Vercel、Render 等静态托管与 WorldCodes Relay 的边界
 
 Vercel、Render 或普通静态容器只能托管 Canvas 前端，可用于界面预览。WorldCodes 默认模型使用同源 Relay；如果托管平台没有为 `/v1/*`、`/v1beta/*` 配置相同的受控反向代理，图片、视频、文本和音频生成都不可用。
 
-WorldCodes 正式部署使用 `canvas.worldcodes.online` 与 Relay 同机子域名方案，Caddy 只放行经过审计的 API 路径，并允许浏览器向私有 R2 预签名地址上传临时素材。
+WorldCodes 正式部署使用 `canvas.worldcodes.online` 与 Relay 同机子域名方案，Caddy 只放行经过审计的 API 路径，并允许浏览器向 R2 预签名地址上传临时素材。
 
 因此不要把原来的“一键部署静态前端”当作完整生产方案。完整步骤以仓库 `deploy/worldcodes/` 的部署合同为准。

@@ -27,7 +27,7 @@ docker run --rm -p 3000:3000 worldcodes-canvas:local
 
 - 同域 Caddy 将允许的 `/v1/*` 与 `/v1beta/*` 路由转发给 Relay。
 - Relay 配置 MiniMax H3、图片模型和用户鉴权。
-- Relay 配置私有 R2 临时素材桶与清理策略。
+- Relay 配置 R2 临时素材桶、短读取域与清理策略。
 
 生产安装合同位于 `deploy/worldcodes/`。不要在静态容器里放供应商 API Key。
 

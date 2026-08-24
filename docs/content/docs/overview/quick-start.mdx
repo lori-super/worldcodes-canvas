@@ -21,7 +21,7 @@ WorldCodes production has three parts:
 
 1. Static Canvas files at `canvas.worldcodes.online`.
 2. Same-origin `/v1/*` and `/v1beta/*` routes reverse-proxied by Caddy to WorldCodes Relay.
-3. Private temporary R2 objects uploaded directly by the browser when MiniMax H3 needs public reference media.
+3. Temporary R2 objects uploaded directly by the browser and read by the upstream through a short media domain.
 
 The audited Caddy routes, R2 configuration, release scripts, and verification contracts are in `deploy/worldcodes/`. A static-only Vercel or Render deployment is not a complete production setup because it has no same-origin Relay.
 

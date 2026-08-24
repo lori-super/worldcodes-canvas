@@ -21,7 +21,7 @@ WorldCodes 生产结构由三部分组成：
 
 1. Canvas 静态站点部署到 `canvas.worldcodes.online`。
 2. 同域 `/v1/*` 与 `/v1beta/*` 由 Caddy 反向代理到 WorldCodes Relay。
-3. MiniMax H3 的本地参考素材由浏览器直传私有 R2 临时对象。
+3. MiniMax H3 的本地参考素材由浏览器直传 R2 临时对象，上游通过临时短域名读取。
 
 部署合同、Caddy 路由、R2 配置和发布校验位于仓库的 `deploy/worldcodes/`。不要只把静态前端发布到 Vercel 或 Render 后当作完整生产站；那样没有同源 Relay，默认生成能力不可用。
 

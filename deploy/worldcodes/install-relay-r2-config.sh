@@ -90,6 +90,7 @@ required_keys=(
 	TEMP_MEDIA_S3_ACCESS_KEY_ID
 	TEMP_MEDIA_S3_SECRET_ACCESS_KEY
 	TEMP_MEDIA_S3_PREFIX
+	TEMP_MEDIA_PUBLIC_BASE_URL
 	TEMP_MEDIA_MAX_BYTES
 	TEMP_MEDIA_MAX_ACTIVE_PER_USER
 	TEMP_MEDIA_MAX_ACTIVE_BYTES_PER_USER
@@ -112,6 +113,7 @@ bucket="$(env_value TEMP_MEDIA_S3_BUCKET)"
 access_key="$(env_value TEMP_MEDIA_S3_ACCESS_KEY_ID)"
 secret_key="$(env_value TEMP_MEDIA_S3_SECRET_ACCESS_KEY)"
 prefix="$(env_value TEMP_MEDIA_S3_PREFIX)"
+public_base_url="$(env_value TEMP_MEDIA_PUBLIC_BASE_URL)"
 [[ "$endpoint" =~ ^https://[0-9a-f]{32}\.r2\.cloudflarestorage\.com$ ]] || {
 	echo "TEMP_MEDIA_S3_ENDPOINT must be one exact R2 S3 HTTPS origin" >&2
 	exit 1
@@ -122,6 +124,10 @@ prefix="$(env_value TEMP_MEDIA_S3_PREFIX)"
 	exit 1
 }
 [[ "$prefix" == "canvas-temp" ]] || { echo "TEMP_MEDIA_S3_PREFIX must be canvas-temp" >&2; exit 1; }
+[[ "$public_base_url" == "https://media.canvas.worldcodes.online" ]] || {
+	echo "TEMP_MEDIA_PUBLIC_BASE_URL must be https://media.canvas.worldcodes.online" >&2
+	exit 1
+}
 [[ "$access_key" =~ ^[A-Za-z0-9]{16,}$ ]] || { echo "TEMP_MEDIA_S3_ACCESS_KEY_ID is missing or invalid" >&2; exit 1; }
 [[ "$secret_key" =~ ^[A-Za-z0-9/+=._-]{32,}$ ]] || { echo "TEMP_MEDIA_S3_SECRET_ACCESS_KEY is missing or invalid" >&2; exit 1; }
 

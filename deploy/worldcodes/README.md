@@ -38,9 +38,9 @@ CSP 只允许请求同源 API 和一个精确 R2 S3 Origin；内置提示词 JSO
 
 ## R2 临时素材桶
 
-桶保持私有并使用 Standard 存储，不开 `r2.dev` 公网访问。浏览器只拿短时预签名 PUT URL，R2 Access Key 永不下发。对象键由 Relay 生成为 `canvas-temp/{user_id}/{date}/{random-id}.{ext}`，不包含原文件名或 API Key。
+桶使用 Standard 存储，关闭 `r2.dev`，只绑定 `media.canvas.worldcodes.online` 作为短期对象读取域。浏览器只拿短时预签名 PUT URL，R2 Access Key 永不下发。对象键由 Relay 生成为 `canvas-temp/{user_id}/{date}/{random-id}.{ext}`，不包含原文件名或 API Key；任务终态主动删除，24 小时生命周期处理异常遗留。
 
-生产 Relay 必须注入 [relay-temporary-media.env.example](./relay-temporary-media.env.example) 中同名变量，并用受保护值替换 endpoint 和两项 Access Key。`TEMP_MEDIA_S3_PREFIX=canvas-temp` 必须保留；它与生命周期的 `canvas-temp/` 是同一前缀，否则 24 小时兜底删除不会命中对象。不要把真实凭据写入仓库。
+生产 Relay 必须注入 [relay-temporary-media.env.example](./relay-temporary-media.env.example) 中同名变量，并用受保护值替换 endpoint 和两项 Access Key。`TEMP_MEDIA_S3_PREFIX=canvas-temp` 与 `TEMP_MEDIA_PUBLIC_BASE_URL=https://media.canvas.worldcodes.online` 必须保留；前者必须与生命周期的 `canvas-temp/` 一致。不要把真实凭据写入仓库。
 
 应用策略：
 
@@ -53,7 +53,7 @@ npx wrangler r2 bucket cors list worldcodes-canvas-temp
 npx wrangler r2 bucket lifecycle list worldcodes-canvas-temp
 ```
 
-浏览器跨域只放行 `PUT`、`HEAD`。PixStag 使用预签名 GET URL从服务端读取，不受浏览器 CORS 限制。任务终态主动删除对象，24 小时生命周期负责失败兜底。
+浏览器跨域只放行 `PUT`、`HEAD`。PixStag 通过 R2 自定义域的短公开 URL 读取随机键临时对象，不受浏览器 CORS 限制。任务终态主动删除对象，24 小时生命周期负责失败兜底。
 
 ## Relay 安全注入 R2 配置
 
