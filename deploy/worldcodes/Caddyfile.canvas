@@ -20,7 +20,7 @@ canvas.worldcodes.online {
 	# One reverse_proxy handler keeps the Relay blue-green upstream count
 	# deterministic. Method and path must both match the public Canvas contract.
 	@canvasAPI expression `
-	(method('GET') && path('/v1/models', '/v1/videos/*')) ||
+	(method('GET') && path('/v1/models', '/v1/images/tasks/*', '/v1/videos/*')) ||
 	(method('POST') && path('/v1/responses', '/v1/audio/speech', '/v1/images/generations', '/v1/images/edits', '/v1/videos', '/v1/media/uploads/presign', '/v1/media/uploads/*', '/v1beta/models/*')) ||
 	(method('DELETE') && path('/v1/media/uploads/*'))
 	`

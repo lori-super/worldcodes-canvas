@@ -22,6 +22,7 @@ Caddy 只用一个 `reverse_proxy` handler，并同时匹配 HTTP 方法与路�
 | 方法 | 路径 |
 | --- | --- |
 | GET | `/v1/models` |
+| GET | `/v1/images/tasks/*` |
 | POST | `/v1/responses` |
 | POST | `/v1/audio/speech` |
 | POST | `/v1/images/generations` |
