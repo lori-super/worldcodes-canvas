@@ -205,7 +205,8 @@ function resolveGeminiImageConfig(config: AiConfig) {
     const aspectRatio = value && value.toLowerCase() !== "auto" ? closestGeminiAspectRatio(ratio) : undefined;
     const imageSize = supportsGeminiImageSize(config.model) ? resolveGeminiImageSize(config.quality, dimensions) : undefined;
     const image = { ...(aspectRatio ? { aspectRatio } : {}), ...(imageSize ? { imageSize } : {}) };
-    return Object.keys(image).length ? { responseFormat: { image } } : {};
+    if (!Object.keys(image).length) return {};
+    return isSameOriginWorldCodesNanoBanana(config) ? { imageConfig: image } : { responseFormat: { image } };
 }
 
 function closestGeminiAspectRatio(value: string) {
@@ -231,7 +232,7 @@ function resolveGeminiImageSize(quality: string, dimensions: { width: number; he
 
 function supportsGeminiImageSize(model: string) {
     const value = model.toLowerCase();
-    return value.includes("gemini-3") || value.includes("3.1") || value.includes("3-pro");
+    return value === WORLD_CODES_NANO_BANANA_MODEL || value.includes("gemini-3") || value.includes("3.1") || value.includes("3-pro");
 }
 
 function resolveImageDataUrl(item: Record<string, unknown>) {
