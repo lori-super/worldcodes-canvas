@@ -22,6 +22,7 @@ Caddy 只用一个 `reverse_proxy` handler，并同时匹配 HTTP 方法与路�
 | 方法 | 路径 |
 | --- | --- |
 | GET | `/v1/models` |
+| GET | `/v1/images/content/*` |
 | GET | `/v1/images/tasks/*` |
 | POST | `/v1/responses` |
 | POST | `/v1/audio/speech` |
@@ -33,7 +34,7 @@ Caddy 只用一个 `reverse_proxy` handler，并同时匹配 HTTP 方法与路�
 | POST、DELETE | `/v1/media/uploads/*` |
 | POST | `/v1beta/models/*` |
 
-其他 `/v1/*`、`/v1beta/*`、`/api/*` 或错误方法固定返回 `404`，不会落到 SPA。`/v1/responses` 和 `/v1/audio/speech` 分别供默认文本与语音节点使用；`/v1beta/models/*` 供 `nano-banana-2` 的 Gemini-compatible 生图调用。API 仍由 Relay 的 Bearer API Key 或该兼容接口要求的 `x-goog-api-key` 鉴权和计费，Caddy 不持有用户密钥。
+其他 `/v1/*`、`/v1beta/*`、`/api/*` 或错误方法固定返回 `404`，不会落到 SPA。`/v1/responses` 和 `/v1/audio/speech` 分别供默认文本与语音节点使用；`/v1beta/models/*` 供 `nano-banana-2` 的 Gemini-compatible 生图调用；`/v1/images/content/*` 只读取 Relay 签发的短时不透明图片地址，供画布同源保存生成结果。API 仍由 Relay 的 Bearer API Key 或该兼容接口要求的 `x-goog-api-key` 鉴权和计费，Caddy 不持有用户密钥。
 
 CSP 只允许请求同源 API 和一个精确 R2 S3 Origin；内置提示词 JSON 已随站点静态包发布，不再请求 GitHub。图片、音频、视频可从 HTTPS 地址展示。未放行 `unsafe-eval`、任意模型 API Origin、远程模型脚本、远程插件、WebDAV 或统计脚本。当前主题初始化仍是内联脚本，因此暂时保留 `script-src 'unsafe-inline'`。
 

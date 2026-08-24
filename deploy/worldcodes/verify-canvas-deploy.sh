@@ -138,7 +138,7 @@ jq -e '
   ([.. | objects | select(.handler? == "file_server")] | length) == 2 and
   ([.. | objects | .expression? // empty | select(.name == "canvasAPI") | .expr
     | gsub("[[:space:]]"; "")] == [
-      "(method(\u0027GET\u0027)&&path(\u0027/v1/models\u0027,\u0027/v1/images/tasks/*\u0027,\u0027/v1/videos/*\u0027))||" +
+      "(method(\u0027GET\u0027)&&path(\u0027/v1/models\u0027,\u0027/v1/images/content/*\u0027,\u0027/v1/images/tasks/*\u0027,\u0027/v1/videos/*\u0027))||" +
       "(method(\u0027POST\u0027)&&path(\u0027/v1/responses\u0027,\u0027/v1/audio/speech\u0027,\u0027/v1/images/generations\u0027,\u0027/v1/images/edits\u0027,\u0027/v1/videos\u0027,\u0027/v1/media/uploads/presign\u0027,\u0027/v1/media/uploads/*\u0027,\u0027/v1beta/models/*\u0027))||" +
       "(method(\u0027DELETE\u0027)&&path(\u0027/v1/media/uploads/*\u0027))"
     ]) and
