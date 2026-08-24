@@ -95,7 +95,7 @@ export default function DocsPage() {
                     <section id="prompts" className="scroll-mt-8 border-b border-stone-200 py-10 dark:border-stone-800">
                         <SectionTitle icon={<Library />} title={labels.prompts} />
                         <p className="mt-4 leading-7 text-stone-600 dark:text-stone-300">
-                            {chinese ? "内置 7 组提示词源，首次打开后读取经过固定的数据 JSON 并缓存到当前浏览器 IndexedDB。页面不会跳转到来源站点；生产 CSP 只额外放行该提示词数据域名，不放行任意模型接口。" : "Seven built-in prompt sources load fixed JSON data and cache it in this browser's IndexedDB. The UI never navigates to source sites; production CSP allows only this prompt-data origin in addition to Relay and R2."}
+                            {chinese ? "内置 7 组提示词源，数据 JSON 随站点静态包发布，并缓存到当前浏览器 IndexedDB。页面不会跳转到来源站点；预览图可继续使用其公开 HTTPS 地址。" : "Seven built-in prompt sources ship as static JSON with this site and are cached in this browser's IndexedDB. The UI never navigates to source sites; preview images may continue to use their public HTTPS addresses."}
                         </p>
                         <Link to="/prompts" className="mt-5 inline-flex items-center gap-2 rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium dark:border-stone-700"><Library className="size-4" />{chinese ? "打开提示词库" : "Open prompt library"}</Link>
                     </section>

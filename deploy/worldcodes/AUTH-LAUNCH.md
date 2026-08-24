@@ -31,4 +31,4 @@ Canvas 使用用户自己的 WorldCodes API Key，请求统一携带 `Authorizat
 - 响应设置 `Cache-Control: no-store`，不返回长期 WorldCodes API Key。
 - Caddy 只在后端接口和回归测试上线后增加 exchange/refresh/logout 精确路径；目前 `/api/*` 固定 `404`。
 - Canvas 启动时不得再接受 URL query 中的 `apiKey`。
-- CSP 继续保持 `connect-src 'self' <exact-r2-origin> https://raw.githubusercontent.com`，其中额外域名只读取内置提示词 JSON，不因无感登录放宽任意模型 API Origin。
+- CSP 继续保持 `connect-src 'self' <exact-r2-origin>`；内置提示词 JSON 随站点静态包发布，不因无感登录放宽任意模型 API Origin。

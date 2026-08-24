@@ -35,7 +35,7 @@ The browser stores and sends the user's WorldCodes API key. Provider credentials
 
 ## Prompts and plugins
 
-The prompt library supports search, filters, details, copy, and asset import. WorldCodes production includes seven audited read-only JSON sources cached in browser IndexedDB. The UI provides no external repository navigation, and production CSP allows only the fixed data origin.
+The prompt library supports search, filters, details, copy, and asset import. WorldCodes ships seven audited read-only JSON sources with the site and caches them in browser IndexedDB. The UI provides no external repository navigation; preview images may still use their public HTTPS addresses.
 
 Built-in and local node plugins remain available. Production does not execute remotely downloaded plugin JavaScript.
 

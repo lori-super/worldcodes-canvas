@@ -49,6 +49,25 @@ jq -e '
   .rules[0].abortMultipartUploadsTransition.condition == {type: "Age", maxAge: 86400}
 ' "${script_dir}/r2-lifecycle.json" >/dev/null
 
+prompt_source_dir="${script_dir}/../../web/public/prompt-sources"
+prompt_source_ids=(
+	banana-prompt-quicker
+	davidwu-gpt-image2-prompts
+	freestylefly-gpt-image-2
+	awesome-gpt-image
+	awesome-gpt4o-image-prompts
+	youmind-gpt-image-2
+	youmind-nano-banana-pro
+)
+prompt_total=0
+for prompt_source_id in "${prompt_source_ids[@]}"; do
+	prompt_source_file="${prompt_source_dir}/${prompt_source_id}.json"
+	[[ -s "$prompt_source_file" ]] || { echo "Missing built-in prompt source: $prompt_source_file" >&2; exit 1; }
+	prompt_count="$(jq -er 'if type == "array" and all(.[]; (.title | type == "string" and length > 0) and (.prompt | type == "string" and length > 0)) then length else error("invalid prompt source") end' "$prompt_source_file")"
+	prompt_total=$((prompt_total + prompt_count))
+done
+[[ "$prompt_total" == "1730" ]] || { echo "Unexpected built-in prompt total: $prompt_total" >&2; exit 1; }
+
 relay_prefix_entries="$({
 	sed -nE 's/^[[:space:]]*(export[[:space:]]+)?TEMP_MEDIA_S3_PREFIX[[:space:]]*=[[:space:]]*([^#[:space:]]+)[[:space:]]*(#.*)?$/\2/p' "$relay_env"
 } || true)"
@@ -87,6 +106,10 @@ sed \
 	-e "s#__R2_ORIGIN__#https://00000000000000000000000000000000.r2.cloudflarestorage.com#g" \
 	-e "s#__RELAY_PORT__#3000#g" \
 	"${script_dir}/Caddyfile.canvas" >"$rendered"
+if grep -Fq 'raw.githubusercontent.com' "$rendered"; then
+	echo "Canvas connect policy must not allow raw.githubusercontent.com" >&2
+	exit 1
+fi
 printf 'services:\n  new-api:\n    image: worldcodes-relay:validation-only\n' >"$compose_base"
 sed "s#__TEMP_MEDIA_ENV_FILE__#${relay_env}#" \
 	"${script_dir}/docker-compose.canvas-r2.yml" >"$compose_validation"

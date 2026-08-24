@@ -33,7 +33,7 @@ The audited production contract is under `deploy/worldcodes/`. Never place provi
 
 ## Data
 
-Canvases, assets, generation history, and the prompt cache remain in browser IndexedDB, so the static container needs no persistent volume. The production prompt library contacts only fixed read-only JSON sources, and local reference bytes go directly to temporary R2 only when generation requires it.
+Canvases, assets, generation history, and the prompt cache remain in browser IndexedDB, so the static container needs no persistent volume. The production prompt library reads JSON shipped with the site, and local reference bytes go directly to temporary R2 only when generation requires it.
 
 ## Standalone documentation
 

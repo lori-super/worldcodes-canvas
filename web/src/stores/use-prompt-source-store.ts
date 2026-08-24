@@ -9,9 +9,10 @@ export type PromptSourceSchedule = {
 };
 
 const PROMPT_SOURCE_STORE_KEY = "infinite-canvas:prompt_source_store_v2";
+const PROMPT_SOURCE_STORE_VERSION = 1;
 
 const defaultSchedule: PromptSourceSchedule = {
-    intervalMinutes: 30,
+    intervalMinutes: 0,
     lastFetchedAt: "",
 };
 
@@ -45,6 +46,15 @@ export const usePromptSourceStore = create<PromptSourceStore>()(
         }),
         {
             name: PROMPT_SOURCE_STORE_KEY,
+            version: PROMPT_SOURCE_STORE_VERSION,
+            migrate: (persisted, version) => {
+                const state = (persisted || {}) as Partial<PromptSourceStore>;
+                if (version >= PROMPT_SOURCE_STORE_VERSION) return state as PromptSourceStore;
+                return {
+                    ...state,
+                    schedule: { ...defaultSchedule, ...(state.schedule || {}), intervalMinutes: 0 },
+                } as PromptSourceStore;
+            },
             partialize: (state) => ({ sources: state.sources, schedule: state.schedule }),
             merge: (persisted, current) => {
                 const persistedState = (persisted || {}) as Partial<PromptSourceStore>;
