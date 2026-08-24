@@ -15,7 +15,7 @@ WorldCodes Canvas 将画布编排、图片与视频生成、参考素材、提�
 - 视频生成：MiniMax H3，支持图片、视频和音频参考。
 - 参考素材：编辑期间保存在浏览器 IndexedDB；生成需要公网地址时，由浏览器直传 R2 临时对象。
 - 站内文档：应用内 `/docs` 提供配置、模型、素材、存储与部署说明。
-- 本地 Agent：作为可选能力保留；自有安装包发布前默认关闭，不影响图片或视频生成。
+- 本地 Agent：作为可选能力保留；入口默认显示，需在用户电脑运行本地桥接器，不影响图片或视频生成。
 
 ## 本地预览
 
@@ -48,7 +48,7 @@ docker compose up --build -d
 
 ## Agent 策略
 
-Agent 需要访问用户本机的 Codex、Skills 与工作区，因此只在用户电脑上运行，不能作为多人共享服务部署到 Relay。当前主站通过 `VITE_AGENT_ENABLED=false` 关闭入口；发布 WorldCodes 自有 Agent 包和 Codex 插件后再开启。
+Agent 需要访问用户本机的 Codex、Skills 与工作区，因此只在用户电脑上运行，不能作为多人共享服务部署到 Relay。主站显示 Agent 入口；如需关闭，可在构建环境设置 `VITE_AGENT_ENABLED=false`。
 
 ## 开源协议
 

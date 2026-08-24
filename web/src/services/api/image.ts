@@ -116,6 +116,7 @@ const IMAGE_MAX_EDGE = 3840;
 const IMAGE_MAX_RATIO = 3;
 const IMAGE_OUTPUT_FORMAT = "png";
 const WORLD_CODES_NANO_BANANA_MODEL = "nano-banana-2";
+const WORLD_CODES_RELAY_ORIGINS = new Set(["https://worldcodes.online"]);
 
 const GEMINI_SUPPORTED_RATIOS = ["1:1", "1:4", "1:8", "2:3", "3:2", "3:4", "4:1", "4:3", "4:5", "5:4", "8:1", "9:16", "16:9", "21:9"];
 const GEMINI_IMAGE_SIZE_BY_QUALITY: Record<string, string> = { low: "1K", medium: "2K", high: "4K", standard: "1K", hd: "2K" };
@@ -360,9 +361,10 @@ function isSameOriginWorldCodesNanoBanana(config: Pick<AiConfig, "baseUrl" | "mo
     if (geminiModelName(config.model).toLowerCase() !== WORLD_CODES_NANO_BANANA_MODEL) return false;
     const baseUrl = config.baseUrl.trim();
     if (!baseUrl || (baseUrl.startsWith("/") && !baseUrl.startsWith("//"))) return true;
-    if (typeof window === "undefined") return false;
     try {
-        return new URL(baseUrl, window.location.href).origin === window.location.origin;
+        const pageUrl = typeof window === "undefined" ? "https://canvas.worldcodes.online/" : window.location.href;
+        const origin = new URL(baseUrl, pageUrl).origin;
+        return WORLD_CODES_RELAY_ORIGINS.has(origin) || (typeof window !== "undefined" && origin === window.location.origin);
     } catch {
         return false;
     }
@@ -850,9 +852,13 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
     if (background) {
         formData.set("background", background);
     }
-    const files = await Promise.all(references.map(async (image) => dataUrlToFile({ ...image, dataUrl: await imageToDataUrl(image) })));
-    files.forEach((file) => formData.append("image", file));
-    if (mask) formData.set("mask", dataUrlToFile(mask));
+    try {
+        const files = await Promise.all(references.map(async (image) => dataUrlToFile({ ...image, dataUrl: await imageToDataUrl(image) })));
+        files.forEach((file) => formData.append("image", file));
+        if (mask) formData.set("mask", dataUrlToFile({ ...mask, dataUrl: await imageToDataUrl(mask) }));
+    } catch {
+        throw new Error(apiText("referenceImageReadFailed"));
+    }
 
     try {
         const response = await axios.post<ImageApiResponse>(aiApiUrl(requestConfig, "/images/edits"), formData, { headers: aiHeaders(requestConfig), signal: options?.signal });

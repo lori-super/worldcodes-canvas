@@ -118,7 +118,7 @@ export default function DocsPage() {
                             <p>{chinese ? "Agent 是可选的本地桥接器，用来让 Codex 读取和操作当前画布。生图、视频生成和素材管理本身不依赖 Agent。" : "The Agent is an optional local bridge that lets Codex read and operate the active canvas. Image/video generation and asset management do not require it."}</p>
                             <p>{chinese ? "它需要访问用户本机的 Codex、Skills 和工作区，因此不能作为多人共享服务部署在 Relay 服务器。正确方式是每位需要 Agent 的用户在自己的电脑上运行 WorldCodes Canvas Agent，再通过 localhost 与网页连接。" : "It needs access to the user's local Codex, Skills, and workspace, so it must not run as a shared service on Relay. Each Agent user runs WorldCodes Canvas Agent locally and connects the site through localhost."}</p>
                             <div className="rounded-xl border border-amber-300/50 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-                                {chinese ? "当前站点已移除上游 Agent 安装命令。WorldCodes 安装包发布前，保持 Agent 关闭即可，不影响核心生成能力。" : "The upstream Agent install command has been removed. Keep Agent disabled until a WorldCodes package is published; core generation remains available."}
+                                {chinese ? "站点已显示 Agent 入口，但对话依赖用户电脑上的 WorldCodes Canvas Agent；Relay 不保存或代跑本地工作区。" : "The Agent entry is visible, but chat requires WorldCodes Canvas Agent on the user's computer; Relay neither stores nor runs local workspaces."}
                             </div>
                         </div>
                     </section>

@@ -68,6 +68,7 @@ const OPENAI_BASE_URL = "https://api.openai.com";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
 const WORLD_CODES_BASE_URL = "/";
 const WORLD_CODES_CHANNEL_ID = "worldcodes";
+const WORLD_CODES_REMOVED_MODELS = new Set(["gpt-4o-mini-tts"]);
 
 const WORLD_CODES_MODELS: ChannelModel[] = [
     { name: "grok-imagine-image-quality", displayName: "Grok Imagine", capability: "image" },
@@ -75,7 +76,6 @@ const WORLD_CODES_MODELS: ChannelModel[] = [
     { name: "nano-banana-2", displayName: "Nano Banana 2", capability: "image" },
     { name: "MiniMax-H3", displayName: "MiniMax H3", capability: "video" },
     { name: "gpt-5.5", capability: "text" },
-    { name: "gpt-4o-mini-tts", capability: "audio" },
 ];
 
 export const defaultConfig: AiConfig = {
@@ -97,7 +97,7 @@ export const defaultConfig: AiConfig = {
     imageModel: `${WORLD_CODES_CHANNEL_ID}::gpt-image-2`,
     videoModel: `${WORLD_CODES_CHANNEL_ID}::MiniMax-H3`,
     textModel: `${WORLD_CODES_CHANNEL_ID}::gpt-5.5`,
-    audioModel: `${WORLD_CODES_CHANNEL_ID}::gpt-4o-mini-tts`,
+    audioModel: "",
     audioVoice: "alloy",
     audioFormat: "mp3",
     audioSpeed: "1",
@@ -150,7 +150,7 @@ const IMAGE_KEYWORDS = ["seedream", "gpt-image", "image", "dall-e", "dalle", "im
 export function guessCapability(name: string): ModelCapability {
     const value = name.toLowerCase();
     if (value === "minimax-h3") return "video";
-    if (value === "nano-banana-2") return "image";
+    if (value.includes("nano-banana")) return "image";
     if (VIDEO_KEYWORDS.some((keyword) => value.includes(keyword))) return "video";
     if (AUDIO_KEYWORDS.some((keyword) => value.includes(keyword))) return "audio";
     if (IMAGE_KEYWORDS.some((keyword) => value.includes(keyword))) return "image";
@@ -246,7 +246,7 @@ export const useConfigStore = create<ConfigStore>()(
                         imageModel: normalizeModelOptionValue(config.imageModel || config.model, channels),
                         videoModel: normalizeModelOptionValue(config.videoModel, channels),
                         textModel: normalizeModelOptionValue(config.textModel || config.model, channels),
-                        audioModel: normalizeModelOptionValue(config.audioModel || defaultConfig.audioModel, channels),
+                        audioModel: normalizeModelOptionValue(config.audioModel, channels),
                         audioVoice: config.audioVoice || defaultConfig.audioVoice,
                         audioFormat: config.audioFormat || defaultConfig.audioFormat,
                         audioSpeed: config.audioSpeed || defaultConfig.audioSpeed,
@@ -363,7 +363,7 @@ function normalizeChannels(config: AiConfig) {
             ...channel,
             id: channel.id || (index === 0 ? "default" : `channel-${index + 1}`),
             name: channel.name || (index === 0 ? i18n.t("config.channels.defaultName") : i18n.t("config.channels.indexedName", { index: index + 1 })),
-            models: normalizeChannelModels(channel.models),
+            models: normalizeChannelModels(channel.models).filter((model) => channel.id !== WORLD_CODES_CHANNEL_ID || !WORLD_CODES_REMOVED_MODELS.has(model.name)),
         }),
     );
     if (!channels.length) {

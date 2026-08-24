@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-test("fresh hydration keeps every WorldCodes preset", async () => {
+test("fresh hydration keeps only real WorldCodes presets", async () => {
     const values = new Map<string, string>();
     const storage = {
         getItem: (key: string) => values.get(key) ?? null,
@@ -15,7 +15,7 @@ test("fresh hydration keeps every WorldCodes preset", async () => {
     Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
     Object.defineProperty(globalThis, "window", { configurable: true, value: globalThis });
 
-    const { useConfigStore } = await import("../src/stores/use-config-store");
+    const { guessCapability, useConfigStore } = await import("../src/stores/use-config-store");
     await useConfigStore.persist.rehydrate();
 
     expect(useConfigStore.getState().config.channels[0]?.models).toEqual([
@@ -24,6 +24,7 @@ test("fresh hydration keeps every WorldCodes preset", async () => {
         { name: "nano-banana-2", displayName: "Nano Banana 2", capability: "image" },
         { name: "MiniMax-H3", displayName: "MiniMax H3", capability: "video" },
         { name: "gpt-5.5", capability: "text" },
-        { name: "gpt-4o-mini-tts", capability: "audio" },
     ]);
+    expect(useConfigStore.getState().config.audioModel).toBe("");
+    expect(guessCapability("nano-banana-pro")).toBe("image");
 });

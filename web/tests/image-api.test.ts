@@ -19,6 +19,8 @@ Object.defineProperty(globalThis, "localStorage", {
         removeItem: (key: string) => values.delete(key),
     },
 });
+Object.defineProperty(globalThis, "window", { configurable: true, value: globalThis });
+Object.defineProperty(globalThis, "location", { configurable: true, value: { href: "https://canvas.worldcodes.online/" } });
 
 beforeEach(() => post.mockClear());
 
@@ -45,6 +47,28 @@ test("Nano Banana 2 uses Gemini imageConfig with an explicit image size", async 
         imageConfig: { aspectRatio: "1:1", imageSize: "1K" },
     });
     expect(options.headers["x-goog-api-key"]).toBe("test-key");
+});
+
+test("the formal WorldCodes origin keeps the Nano Banana Relay route", async () => {
+    const { requestGeneration } = await import("../src/services/api/image");
+    const { defaultConfig } = await import("../src/stores/use-config-store");
+    const model = "worldcodes::nano-banana-2";
+    const config = {
+        ...defaultConfig,
+        model,
+        imageModel: model,
+        channels: defaultConfig.channels.map((channel) => ({
+            ...channel,
+            baseUrl: "https://worldcodes.online",
+            apiKey: "formal-key",
+        })),
+    };
+
+    await requestGeneration(config, "测试提示词");
+
+    const [url, , options] = post.mock.calls[0];
+    expect(url).toBe("https://worldcodes.online/v1beta/models/nano-banana-2:generateContent");
+    expect(options.headers["x-goog-api-key"]).toBe("formal-key");
 });
 
 test("external Gemini keeps the native responseFormat image config", async () => {

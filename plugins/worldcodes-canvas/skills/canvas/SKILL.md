@@ -5,7 +5,7 @@ description: 操作 WorldCodes Canvas 当前网页画布，读取节点、选区
 
 # WorldCodes Canvas
 
-你正在帮助用户操作 WorldCodes Canvas 网页画布。需要理解或改动画布时，优先使用已配置的 `infinite-canvas` MCP 工具；不要让用户手动复制 JSON、URL 或 token。
+你正在帮助用户操作 WorldCodes Canvas 网页画布。需要理解或改动画布时，优先使用已配置的 `infinite-canvas` MCP 工具；该 ID 仅为本地兼容标识，实际服务来自 WorldCodes 自托管 Agent 包。不要让用户手动复制 JSON、URL 或 token。
 
 ## 工作流
 

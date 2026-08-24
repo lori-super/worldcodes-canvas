@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { Tooltip } from "antd";
-import { BookOpen, Keyboard, Puzzle, Settings2 } from "lucide-react";
+import { BookOpen, House, Keyboard, Puzzle, Settings2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
@@ -10,6 +10,7 @@ import { changeAppLocale, type AppLocale } from "@/i18n";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useConfigStore } from "@/stores/use-config-store";
 import { useThemeStore } from "@/stores/use-theme-store";
+import { WORLD_CODES_MAIN_SITE_URL } from "@/constant/env";
 
 type UserStatusActionsProps = {
     showConfig?: boolean;
@@ -33,6 +34,9 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
 
     return (
         <div className="inline-flex shrink-0 items-center gap-1">
+            <a href={WORLD_CODES_MAIN_SITE_URL} target="_blank" rel="noreferrer" className={naturalIconClass} style={iconStyle} aria-label={t("topNav.mainSite")} title={t("topNav.mainSite")}>
+                <House className="size-4" />
+            </a>
             {onOpenPlugins ? (
                 <button type="button" className={naturalIconClass} style={iconStyle} onClick={onOpenPlugins} aria-label={t("topNav.plugins")} title={t("topNav.plugins")}>
                     <Puzzle className="size-4" />

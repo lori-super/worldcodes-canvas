@@ -436,7 +436,7 @@ export function startHttpServer() {
         checkVersions();
         console.log(`Local URL: ${config.url}`);
         console.log(`Connect token: ${config.token}`);
-        console.log("WorldCodes MCP distribution is disabled until the official package is released.");
+        console.log("Open https://canvas.worldcodes.online and connect this local Agent.");
         if (logger.enabled) console.log(`Debug log: ${logger.filePath}`);
         logger.info("Canvas Agent started", { url: config.url, workspace: ensureSiteWorkspace(config).workspacePath, debugLog: logger.filePath });
         const activeThreadId = initialWorkspace.activeThreadId || "";

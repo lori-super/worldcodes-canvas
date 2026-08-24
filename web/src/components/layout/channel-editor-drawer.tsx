@@ -1,15 +1,18 @@
-import { Button, Drawer, Input, Segmented, Select, Space } from "antd";
-import { ListPlus, Trash2 } from "lucide-react";
+import { App, Button, Drawer, Input, Segmented, Select, Space } from "antd";
+import { ListPlus, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { fetchChannelModels } from "@/services/api/image";
 import { defaultBaseUrlForApiFormat, guessCapability, normalizeChannelModels, type ApiCallFormat, type ChannelModel, type ModelCapability, type ModelChannel } from "@/stores/use-config-store";
 import { ModelSelectModal } from "./model-select-modal";
 
 export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: boolean; channel: ModelChannel | null; onSave: (channel: ModelChannel) => void; onClose: () => void }) {
+    const { message } = App.useApp();
     const { t } = useTranslation();
     const [draft, setDraft] = useState<ModelChannel | null>(channel);
     const [selectOpen, setSelectOpen] = useState(false);
+    const [syncingModels, setSyncingModels] = useState(false);
     const apiFormatOptions: Array<{ label: string; value: ApiCallFormat }> = [
         { label: "OpenAI", value: "openai" },
         { label: "Gemini", value: "gemini" },
@@ -37,6 +40,24 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
 
     const setCapability = (name: string, capability: ModelCapability) => setModels(draft.models.map((model) => (model.name === name ? { ...model, capability } : model)));
     const removeModel = (name: string) => setModels(draft.models.filter((model) => model.name !== name));
+
+    const syncModels = async () => {
+        if (!draft.baseUrl.trim() || !draft.apiKey.trim()) {
+            message.error(t("config.modelSelect.missingConfig"));
+            return;
+        }
+        setSyncingModels(true);
+        try {
+            const names = await fetchChannelModels(draft);
+            const existing = new Map(draft.models.map((model) => [model.name, model]));
+            setModels(names.map((name) => existing.get(name) || { name, capability: guessCapability(name) }));
+            message.success(t("config.modelSelect.fetched", { count: names.length }));
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : t("config.modelSelect.fetchFailed"));
+        } finally {
+            setSyncingModels(false);
+        }
+    };
 
     const save = () => {
         onSave({ ...draft, name: draft.name.trim() || t("config.channels.unnamed"), models: normalizeChannelModels(draft.models) });
@@ -83,9 +104,14 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
                     <div className="text-sm font-semibold">{t("config.channelEditor.models")}</div>
                     <div className="mt-0.5 text-xs text-stone-500">{t("config.channelEditor.modelDescription", { count: draft.models.length })}</div>
                 </div>
-                <Button type="primary" icon={<ListPlus className="size-4" />} onClick={() => setSelectOpen(true)}>
-                    {t("config.channelEditor.selectModels")}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                    <Button icon={<RefreshCw className="size-4" />} loading={syncingModels} onClick={() => void syncModels()}>
+                        {t(syncingModels ? "config.channelEditor.syncingModels" : "config.channelEditor.syncModels")}
+                    </Button>
+                    <Button type="primary" icon={<ListPlus className="size-4" />} onClick={() => setSelectOpen(true)}>
+                        {t("config.channelEditor.selectModels")}
+                    </Button>
+                </div>
             </div>
 
             <div className="space-y-2 rounded-lg border border-stone-200 p-2 dark:border-stone-800">

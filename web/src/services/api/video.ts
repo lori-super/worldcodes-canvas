@@ -53,9 +53,13 @@ export async function createVideoGenerationTask(config: AiConfig, prompt: string
     const selectedModel = (config.model || config.videoModel).trim();
     const requestConfig = resolveModelRequestConfig(config, selectedModel);
     const script = resolveModelScript(config, selectedModel);
-    if (script) return createPluginVideoTask(requestConfig, selectedModel, script, prompt, references.images || [], options);
+    if (script) {
+        assertStandardVideoReferences(references);
+        return createPluginVideoTask(requestConfig, selectedModel, script, prompt, references.images || [], options);
+    }
     assertVideoConfig(requestConfig, requestConfig.model);
     if (isMiniMaxH3(requestConfig.model)) return createMiniMaxH3Task(requestConfig, selectedModel, prompt, references, options);
+    assertStandardVideoReferences(references, 7);
     return createOpenAIVideoTask(requestConfig, selectedModel, prompt, references.images || [], options);
 }
 
@@ -170,6 +174,7 @@ async function prepareMiniMaxH3Content(config: AiConfig, prompt: string, referen
             }
             const blob = (image.storageKey ? await getImageBlob(image.storageKey) : null) || (await referenceBlob(image.dataUrl || image.url));
             if (!blob) throw new Error(apiText("referenceImageReadFailed"));
+            await assertMiniMaxH3ReferenceDimensions(blob, "image");
             const upload = await uploadTemporaryMedia(config, blob, image.name || "reference.png", signal);
             uploadIds.push(upload.id);
             content.push({ type: "image_url", upload_id: upload.id, image_url: { role } });
@@ -183,6 +188,7 @@ async function prepareMiniMaxH3Content(config: AiConfig, prompt: string, referen
             }
             const blob = (video.storageKey ? await getMediaBlob(video.storageKey) : null) || (await referenceBlob(video.url));
             if (!blob) throw new Error(apiText("invalidReferenceVideo"));
+            await assertMiniMaxH3ReferenceDimensions(blob, "video");
             const upload = await uploadTemporaryMedia(config, blob, video.name || "reference.mp4", signal);
             uploadIds.push(upload.id);
             content.push({ type: "video_url", upload_id: upload.id, video_url: { role: "reference_video" } });
@@ -218,6 +224,37 @@ async function referenceBlob(value?: string) {
 
 function publicReferenceUrl(value?: string) {
     return value && /^https:\/\//i.test(value) ? value : "";
+}
+
+async function assertMiniMaxH3ReferenceDimensions(blob: Blob, kind: "image" | "video") {
+    const objectUrl = URL.createObjectURL(blob);
+    try {
+        const { width, height } = kind === "image" ? await loadImageDimensions(objectUrl) : await loadVideoDimensions(objectUrl);
+        if (width < 256 || width > 5760 || height < 256 || height > 5760) {
+            throw new Error(i18n.t(`apiReferenceDimensions.${kind}`, { width, height }));
+        }
+    } finally {
+        URL.revokeObjectURL(objectUrl);
+    }
+}
+
+function loadImageDimensions(url: string) {
+    return new Promise<{ width: number; height: number }>((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
+        image.onerror = () => reject(new Error(apiText("referenceImageReadFailed")));
+        image.src = url;
+    });
+}
+
+function loadVideoDimensions(url: string) {
+    return new Promise<{ width: number; height: number }>((resolve, reject) => {
+        const video = document.createElement("video");
+        video.preload = "metadata";
+        video.onloadedmetadata = () => resolve({ width: video.videoWidth, height: video.videoHeight });
+        video.onerror = () => reject(new Error(apiText("invalidReferenceVideo")));
+        video.src = url;
+    });
 }
 
 async function createOpenAIVideoTask(config: AiConfig, model: string, prompt: string, references: ReferenceImage[], options?: RequestOptions): Promise<VideoGenerationTask> {
@@ -284,6 +321,11 @@ function assertVideoConfig(config: AiConfig, model: string) {
     if (!config.baseUrl.trim()) throw new Error(apiText("baseUrlRequired"));
     if (!config.apiKey.trim()) throw new Error(apiText("apiKeyRequired"));
     if (config.apiFormat === "gemini") throw new Error(apiText("geminiVideoUnsupported"));
+}
+
+function assertStandardVideoReferences(references: VideoGenerationReferences, maxImages?: number) {
+    if (references.videos?.length || references.audios?.length || references.images?.some((image) => image.role && image.role !== "reference_image")) throw new Error(apiText("h3ReferencesOnly"));
+    if (maxImages && (references.images?.length || 0) > maxImages) throw new Error(apiText("standardVideoImageLimit", { count: maxImages }));
 }
 
 function isMiniMaxH3(model: string) {

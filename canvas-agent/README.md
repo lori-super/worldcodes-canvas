@@ -4,7 +4,15 @@ WorldCodes Canvas Agent 是可选的本地桥接器，让 Codex 读取和操作�
 
 ## 当前状态
 
-WorldCodes 安装包和 Codex 插件尚未发布，主站默认隐藏 Agent 入口。图片生成、视频生成和参考素材管理都不依赖 Agent。
+主站显示 Agent 入口；要使用对话，需要在用户电脑运行本地桥接器。图片生成、视频生成和参考素材管理都不依赖 Agent。
+
+正式安装包由 WorldCodes Canvas 自有站点提供，用户可直接运行：
+
+```bash
+npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.0.tgz
+```
+
+源码与插件不再安装、查询或提示升级任何上游 Canvas Agent 包。
 
 源码开发时可以本地运行：
 
@@ -37,9 +45,9 @@ codex mcp add infinite-canvas -- node /absolute/path/to/worldcodes-canvas/canvas
 codex mcp remove infinite-canvas
 ```
 
-正式开放 Agent 前需要完成：
+发布新版本前需要完成：
 
-1. 发布 `@worldcodes/canvas-agent`。
-2. 发布 WorldCodes Codex 插件并配置自有站点地址。
+1. 构建并发布自有 Agent 安装包。
+2. 更新 WorldCodes Codex 插件的固定版本地址。
 3. 完成签名、版本更新和安装说明。
-4. 在 Web 构建环境设置 `VITE_AGENT_ENABLED=true`。
+4. 验证正式站与 `127.0.0.1:17371` 的连接流程。

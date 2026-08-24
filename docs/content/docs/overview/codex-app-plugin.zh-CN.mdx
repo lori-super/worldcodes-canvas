@@ -17,7 +17,13 @@ Agent 需要访问用户电脑上的 Codex 登录状态、Skills、工作区和�
 
 ## 当前状态
 
-WorldCodes 自有 Agent 安装包和 Codex 插件尚未发布。主站默认隐藏 Agent 入口，插件市场与 MCP 自动启动配置也已关闭，避免用户误装第三方包。
+主站已显示 Agent 入口，仓库也已提供 WorldCodes 自有插件、MCP 配置和 Agent 源码；其中不再引用或启动上游插件、Agent 包和站点。正式安装包固定从 WorldCodes Canvas 自有站点下载。
+
+启动本地 Agent：
+
+```bash
+npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.0.tgz
+```
 
 如需内部开发，可从本地源码构建 Agent：
 
@@ -30,9 +36,8 @@ node dist/index.js
 
 MCP ID `infinite-canvas` 与本地目录 `~/.infinite-canvas` 暂时作为兼容标识保留，避免已有用户配置和数据失效；它们不会显示为站点品牌。
 
-## 正式开放条件
+## 更新条件
 
-1. 发布 `@worldcodes/canvas-agent`。
-2. 发布 WorldCodes Codex 插件并配置自有站点。
+1. 构建并发布自有 Agent 安装包。
+2. 发布并验证仓库中的 `worldcodes-canvas` Codex 插件。
 3. 完成版本更新、签名和安装说明。
-4. 在 Web 构建环境设置 `VITE_AGENT_ENABLED=true`。

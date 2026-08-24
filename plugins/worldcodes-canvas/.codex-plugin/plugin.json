@@ -1,27 +1,31 @@
 {
   "name": "worldcodes-canvas",
   "version": "0.1.0",
-  "description": "WorldCodes Canvas local Agent integration. Distribution remains disabled until the WorldCodes Agent package is released.",
+  "description": "Use Codex to read and operate WorldCodes Canvas through the local WorldCodes Agent.",
   "author": {
     "name": "WorldCodes"
   },
-  "license": "AGPL-3.0",
+  "homepage": "https://canvas.worldcodes.online/docs",
+  "repository": "https://github.com/lori-super/worldcodes-canvas",
+  "license": "MIT",
   "keywords": ["worldcodes", "canvas", "mcp", "agent"],
+  "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "WorldCodes Canvas",
     "shortDescription": "Use Codex to operate the current WorldCodes Canvas board.",
-    "longDescription": "Connects Codex to the optional local WorldCodes Canvas Agent. The integration is not distributed until the official WorldCodes package is available.",
+    "longDescription": "Connects Codex to the local WorldCodes Canvas Agent so it can inspect the active board, create nodes, connect workflows, and trigger generation after confirmation.",
     "developerName": "WorldCodes",
     "category": "Productivity",
     "capabilities": ["Canvas", "MCP", "Creative Workflow"],
+    "websiteURL": "https://canvas.worldcodes.online/",
     "defaultPrompt": [
       "打开 WorldCodes Canvas",
       "读取当前画布并总结节点结构",
       "根据选中节点创建一组生图提示词"
     ],
     "brandColor": "#2563EB",
-    "composerIcon": "./assets/icon.png",
-    "logo": "./assets/icon.png"
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg"
   }
 }

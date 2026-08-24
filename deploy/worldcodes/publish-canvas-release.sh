@@ -11,6 +11,10 @@ Usage:
 The .tar.gz artifact must contain index.html, config.js and assets/ at its root.
 --check validates and extracts only to a temporary directory.
 --apply atomically switches /opt/worldcodes-canvas/current and reloads Caddy.
+
+Optional environment:
+  WORLDCODES_CANVAS_TLS_CERT  TLS certificate used by the loopback HTTPS smoke check
+                              (default: /etc/caddy/tls/worldcodes-origin.pem)
 EOF
 }
 
@@ -22,6 +26,7 @@ caddy_bin="${CADDY_BIN:-caddy}"
 systemctl_bin="${SYSTEMCTL_BIN:-systemctl}"
 main_config="${CADDY_MAIN_CONFIG:-/etc/caddy/Caddyfile}"
 site_root="${WORLDCODES_CANVAS_SITE_ROOT:-/opt/worldcodes-canvas}"
+tls_certificate="${WORLDCODES_CANVAS_TLS_CERT:-/etc/caddy/tls/worldcodes-origin.pem}"
 
 while (($#)); do
 	case "$1" in
@@ -121,6 +126,7 @@ if [[ "$mode" == "--check" ]]; then
 fi
 
 [[ -r "$main_config" ]] || { echo "Main Caddyfile is not readable: $main_config" >&2; exit 1; }
+[[ -r "$tls_certificate" ]] || { echo "Canvas TLS certificate is not readable: $tls_certificate" >&2; exit 1; }
 grep -Fqx 'import /etc/caddy/Caddyfile.canvas' "$main_config" || {
 	echo "Main Caddyfile does not import /etc/caddy/Caddyfile.canvas" >&2
 	exit 1
@@ -175,6 +181,7 @@ request_status() {
 	local method="$1" path="$2"
 	curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
 		--request "$method" --max-time 15 \
+		--cacert "$tls_certificate" \
 		--resolve canvas.worldcodes.online:443:127.0.0.1 \
 		"https://canvas.worldcodes.online${path}"
 }
@@ -194,6 +201,7 @@ if [[ "$(request_status GET /)" != "200" || \
 fi
 
 curl --silent --show-error --output /dev/null --dump-header "$header_file" \
+	--cacert "$tls_certificate" \
 	--max-time 15 --resolve canvas.worldcodes.online:443:127.0.0.1 \
 	https://canvas.worldcodes.online/
 if ! grep -Eiq '^Content-Security-Policy:.*connect-src.*r2\.cloudflarestorage\.com' "$header_file"; then

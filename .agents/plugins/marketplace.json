@@ -1,7 +1,20 @@
 {
-  "name": "worldcodes-canvas-local",
+  "name": "worldcodes-canvas",
   "interface": {
     "displayName": "WorldCodes Canvas"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "worldcodes-canvas",
+      "source": {
+        "source": "local",
+        "path": "./plugins/worldcodes-canvas"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
 }

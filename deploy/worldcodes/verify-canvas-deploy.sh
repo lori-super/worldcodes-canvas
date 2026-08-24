@@ -110,8 +110,8 @@ if grep -Fq 'raw.githubusercontent.com' "$rendered"; then
 	echo "Canvas connect policy must not allow raw.githubusercontent.com" >&2
 	exit 1
 fi
-if ! grep -Fq "connect-src 'self' data: https://00000000000000000000000000000000.r2.cloudflarestorage.com" "$rendered"; then
-	echo "Canvas connect policy must allow same-site, inline data and the exact R2 origin" >&2
+if ! grep -Fq "connect-src 'self' blob: data: https://worldcodes.online http://127.0.0.1:17371 https://00000000000000000000000000000000.r2.cloudflarestorage.com" "$rendered"; then
+	echo "Canvas connect policy must allow the formal Relay, local Agent and exact R2 origin" >&2
 	exit 1
 fi
 printf 'services:\n  new-api:\n    image: worldcodes-relay:validation-only\n' >"$compose_base"

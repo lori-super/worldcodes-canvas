@@ -13,7 +13,13 @@ The Agent needs the user's local Codex login, Skills, workspace, and files. A sh
 
 ## Current status
 
-The WorldCodes Agent package and Codex plugin have not been released. The main site hides the Agent entry, and plugin distribution plus automatic MCP startup remain disabled to prevent accidental third-party installation.
+The main site exposes the Agent entry, and this repository now contains the WorldCodes-owned plugin, MCP configuration, and Agent source. None of them installs or launches the upstream plugin, Agent package, or website. The official package is downloaded from the WorldCodes Canvas site.
+
+Start the local Agent:
+
+```bash
+npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.0.tgz
+```
 
 Internal developers can build the Agent from local source:
 
@@ -26,9 +32,8 @@ node dist/index.js
 
 The MCP ID `infinite-canvas` and local directory `~/.infinite-canvas` remain compatibility identifiers so existing local settings and data continue to work; neither is presented as the product brand.
 
-## Requirements before release
+## Update requirements
 
-1. Publish `@worldcodes/canvas-agent`.
-2. Publish the WorldCodes Codex plugin with the WorldCodes site configured.
+1. Build and publish the self-hosted Agent package.
+2. Publish and verify the repository's `worldcodes-canvas` Codex plugin.
 3. Complete signing, version updates, and installation guidance.
-4. Set `VITE_AGENT_ENABLED=true` in the Web build environment.

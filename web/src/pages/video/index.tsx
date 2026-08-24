@@ -1,6 +1,6 @@
-import { ArrowLeft, ArrowRight, BookOpen, CheckSquare, ClipboardPaste, Download, FolderPlus, History, LoaderCircle, Plus, SlidersHorizontal, Sparkles, Trash2, Upload, VideoIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, CheckSquare, ClipboardPaste, Download, FolderPlus, History, LoaderCircle, Music2, Plus, SlidersHorizontal, Sparkles, Trash2, Upload, VideoIcon } from "lucide-react";
 import { useEffect, useRef, useState, type DragEvent } from "react";
-import { App, Button, Checkbox, Drawer, Empty, Input, Modal, Tag, Typography } from "antd";
+import { App, Button, Checkbox, Drawer, Empty, Input, Modal, Select, Tag, Typography } from "antd";
 import localforage from "localforage";
 import { nanoid } from "nanoid";
 import { saveAs } from "file-saver";
@@ -12,7 +12,7 @@ import { PromptSelectDialog } from "@/components/prompts/prompt-select-dialog";
 import { VideoSettingsPanel, normalizeVideoResolutionValue, normalizeVideoSizeValue, videoSizeLabel } from "@/components/video-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { formatBytes, formatDuration } from "@/lib/image-utils";
-import { deleteStoredMedia, resolveMediaUrl } from "@/services/file-storage";
+import { deleteStoredMedia, getMediaBlob, resolveMediaUrl, uploadMediaFile } from "@/services/file-storage";
 import { resolveImageUrl, uploadImage } from "@/services/image-storage";
 import { createVideoGenerationTask, pollVideoGenerationTask, storeGeneratedVideo, type VideoGenerationTask } from "@/services/api/video";
 import { useAssetStore } from "@/stores/use-asset-store";
@@ -20,6 +20,7 @@ import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
 import { boolConfig, modelOptionLabel, modelOptionName, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { ReferenceImage } from "@/types/image";
+import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
 import i18n from "@/i18n";
 
 type GeneratedVideo = {
@@ -49,6 +50,8 @@ type GenerationLog = {
     model: string;
     config: GenerationLogConfig;
     references: ReferenceImage[];
+    referenceVideos: ReferenceVideo[];
+    referenceAudios: ReferenceAudio[];
     durationMs: number;
     size: string;
     resolution: string;
@@ -65,6 +68,15 @@ type UpdateAiConfig = <K extends keyof AiConfig>(key: K, value: AiConfig[K]) => 
 
 const LOG_STORE_KEY = "infinite-canvas:video_generation_logs";
 const logStore = localforage.createInstance({ name: "infinite-canvas", storeName: "video_generation_logs" });
+const MAX_IMAGE_BYTES = 30 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
+const MAX_AUDIO_BYTES = 15 * 1024 * 1024;
+const MAX_H3_IMAGES = 9;
+const MAX_STANDARD_IMAGES = 7;
+const MAX_REFERENCE_VIDEOS = 3;
+const MAX_REFERENCE_AUDIOS = 3;
+const MIN_AUDIO_DURATION_MS = 2_000;
+const MAX_AUDIO_DURATION_MS = 15_000;
 
 export default function VideoPage() {
     const { message } = App.useApp();
@@ -80,6 +92,8 @@ export default function VideoPage() {
     const addAsset = useAssetStore((state) => state.addAsset);
     const [prompt, setPrompt] = useState("");
     const [references, setReferences] = useState<ReferenceImage[]>([]);
+    const [referenceVideos, setReferenceVideos] = useState<ReferenceVideo[]>([]);
+    const [referenceAudios, setReferenceAudios] = useState<ReferenceAudio[]>([]);
     const [results, setResults] = useState<GenerationResult[]>([]);
     const [logs, setLogs] = useState<GenerationLog[]>([]);
     const [running, setRunning] = useState(false);
@@ -101,6 +115,12 @@ export default function VideoPage() {
     const agentTaskIdRef = useRef<string | undefined>(undefined);
 
     const model = effectiveConfig.videoModel || effectiveConfig.model;
+    const miniMaxH3 = isMiniMaxH3Model(model);
+    const referenceRoles: { value: NonNullable<ReferenceImage["role"]>; label: string }[] = [
+        { value: "reference_image", label: t("videoWorkbench.roleReference") },
+        { value: "first_frame", label: t("videoWorkbench.roleFirstFrame") },
+        { value: "last_frame", label: t("videoWorkbench.roleLastFrame") },
+    ];
     const canGenerate = Boolean(prompt.trim());
 
     useEffect(() => {
@@ -115,16 +135,65 @@ export default function VideoPage() {
 
     const addReferences = async (files?: FileList | null) => {
         const selectedFiles = Array.from(files || []);
-        const unsupported = selectedFiles.filter((file) => !file.type.startsWith("image/"));
+        const classified = selectedFiles.map((file) => ({ file, kind: referenceFileKind(file) }));
+        const unsupported = classified.filter((item) => !item.kind);
         if (unsupported.length) message.warning(t("videoWorkbench.unsupportedFiles"));
-        const imageFiles = selectedFiles.filter((file) => file.type.startsWith("image/")).slice(0, 7 - references.length);
-        const nextReferences = await Promise.all(
-            imageFiles.map(async (file) => {
-                const image = await uploadImage(file);
-                return { id: nanoid(), name: file.name, type: image.mimeType, dataUrl: image.url, storageKey: image.storageKey };
-            }),
-        );
-        setReferences((value) => [...value, ...nextReferences].slice(0, 7));
+
+        const imageLimit = miniMaxH3 ? MAX_H3_IMAGES : MAX_STANDARD_IMAGES;
+        const allImageFiles = classified.filter((item) => item.kind === "image").map((item) => item.file);
+        const allVideoFiles = classified.filter((item) => item.kind === "video").map((item) => item.file);
+        const allAudioFiles = classified.filter((item) => item.kind === "audio").map((item) => item.file);
+        const imageFiles = allImageFiles.filter((file) => file.size <= MAX_IMAGE_BYTES).slice(0, Math.max(0, imageLimit - references.length));
+        const videoFiles = allVideoFiles.filter((file) => file.size <= MAX_VIDEO_BYTES).slice(0, Math.max(0, MAX_REFERENCE_VIDEOS - referenceVideos.length));
+        const audioFiles = allAudioFiles.filter((file) => file.size <= MAX_AUDIO_BYTES).slice(0, Math.max(0, MAX_REFERENCE_AUDIOS - referenceAudios.length));
+        if (allImageFiles.some((file) => file.size > MAX_IMAGE_BYTES)) message.warning(t("videoWorkbench.imageTooLarge"));
+        if (allVideoFiles.some((file) => file.size > MAX_VIDEO_BYTES)) message.warning(t("videoWorkbench.videoTooLarge"));
+        if (allAudioFiles.some((file) => file.size > MAX_AUDIO_BYTES)) message.warning(t("videoWorkbench.audioTooLarge"));
+        if (imageFiles.length < allImageFiles.filter((file) => file.size <= MAX_IMAGE_BYTES).length || videoFiles.length < allVideoFiles.filter((file) => file.size <= MAX_VIDEO_BYTES).length || audioFiles.length < allAudioFiles.filter((file) => file.size <= MAX_AUDIO_BYTES).length) {
+            message.warning(t("videoWorkbench.referenceLimit"));
+        }
+
+        try {
+            const nextReferences = await Promise.all(
+                imageFiles.map(async (file) => {
+                    const image = await uploadImage(file);
+                    return { id: nanoid(), name: file.name, type: image.mimeType, dataUrl: image.url, storageKey: image.storageKey, role: "reference_image" as const };
+                }),
+            );
+            const nextVideos = await Promise.all(
+                videoFiles.map(async (file) => {
+                    const video = await uploadMediaFile(file, "video-reference");
+                    return { id: nanoid(), name: file.name, type: video.mimeType, url: video.url, storageKey: video.storageKey, bytes: video.bytes, width: video.width, height: video.height, durationMs: video.durationMs };
+                }),
+            );
+            const uploadedAudios = await Promise.all(
+                audioFiles.map(async (file) => {
+                    const audio = await uploadMediaFile(file, "audio-reference");
+                    return { id: nanoid(), name: file.name, type: audio.mimeType, url: audio.url, storageKey: audio.storageKey, durationMs: audio.durationMs };
+                }),
+            );
+            let audioDurationMs = referenceAudios.reduce((total, audio) => total + (audio.durationMs || 0), 0);
+            const nextAudios: ReferenceAudio[] = [];
+            const rejectedAudioKeys: string[] = [];
+            for (const audio of uploadedAudios) {
+                const durationMs = audio.durationMs || 0;
+                if (durationMs < MIN_AUDIO_DURATION_MS || durationMs > MAX_AUDIO_DURATION_MS || audioDurationMs + durationMs > MAX_AUDIO_DURATION_MS) {
+                    rejectedAudioKeys.push(audio.storageKey);
+                } else {
+                    nextAudios.push(audio);
+                    audioDurationMs += durationMs;
+                }
+            }
+            if (rejectedAudioKeys.length) {
+                await deleteStoredMedia(rejectedAudioKeys);
+                message.warning(t("videoWorkbench.audioDurationInvalid"));
+            }
+            setReferences((value) => [...value, ...nextReferences].slice(0, imageLimit));
+            setReferenceVideos((value) => [...value, ...nextVideos].slice(0, MAX_REFERENCE_VIDEOS));
+            setReferenceAudios((value) => [...value, ...nextAudios].slice(0, MAX_REFERENCE_AUDIOS));
+        } catch {
+            message.error(t("videoWorkbench.referenceUploadFailed"));
+        }
     };
 
     const handleReferenceDragEnter = (event: DragEvent<HTMLDivElement>) => {
@@ -154,17 +223,24 @@ export default function VideoPage() {
                 message.error(t("videoWorkbench.clipboardEmpty"));
                 return;
             }
+            const imageLimit = miniMaxH3 ? MAX_H3_IMAGES : MAX_STANDARD_IMAGES;
             const nextReferences = await Promise.all(
-                blobs.slice(0, 7 - references.length).map(async (blob, index) => {
+                blobs.filter((blob) => blob.size <= MAX_IMAGE_BYTES).slice(0, Math.max(0, imageLimit - references.length)).map(async (blob, index) => {
                     const image = await uploadImage(blob);
-                    return { id: nanoid(), name: `clipboard-${index + 1}.png`, type: image.mimeType, dataUrl: image.url, storageKey: image.storageKey };
+                    return { id: nanoid(), name: `clipboard-${index + 1}.png`, type: image.mimeType, dataUrl: image.url, storageKey: image.storageKey, role: "reference_image" as const };
                 }),
             );
-            setReferences((value) => [...value, ...nextReferences].slice(0, 7));
+            if (blobs.some((blob) => blob.size > MAX_IMAGE_BYTES)) message.warning(t("videoWorkbench.imageTooLarge"));
+            if (nextReferences.length < blobs.filter((blob) => blob.size <= MAX_IMAGE_BYTES).length) message.warning(t("videoWorkbench.referenceLimit"));
+            setReferences((value) => [...value, ...nextReferences].slice(0, imageLimit));
             message.success(t("videoWorkbench.clipboardAdded", { count: nextReferences.length }));
         } catch {
             message.error(t("videoWorkbench.clipboardEmpty"));
         }
+    };
+
+    const updateReferenceRole = (id: string, role: NonNullable<ReferenceImage["role"]>) => {
+        setReferences((value) => value.map((item) => (item.id === id ? { ...item, role } : role !== "reference_image" && item.role === role ? { ...item, role: "reference_image" } : item)));
     };
     const generate = async () => {
         const agentTaskId = agentTaskIdRef.current;
@@ -182,15 +258,15 @@ export default function VideoPage() {
         const batchStartedAt = performance.now();
         setStartedAt(batchStartedAt);
         try {
-            const task = await createVideoGenerationTask(snapshot.config, snapshot.text, { images: snapshot.references });
-            const log = buildLog({ prompt: snapshot.text, model, config: snapshot.config, references: snapshot.references, durationMs: 0, status: "pending", task });
+            const task = await createVideoGenerationTask(snapshot.config, snapshot.text, { images: snapshot.references, videos: snapshot.referenceVideos, audios: snapshot.referenceAudios });
+            const log = buildLog({ prompt: snapshot.text, model, config: snapshot.config, references: snapshot.references, referenceVideos: snapshot.referenceVideos, referenceAudios: snapshot.referenceAudios, durationMs: 0, status: "pending", task });
             await saveLog(log, false);
             void pollGenerationLog(log, snapshot.config, agentTaskId);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : t("workbench.generationFailed");
             setResults([{ id: nanoid(), status: "failed", error: errorMessage }]);
             if (agentTaskId) updateAgentTask(agentTaskId, { status: "failed", successCount: 0, failCount: 1, error: errorMessage });
-            await saveLog(buildLog({ prompt: snapshot.text, model, config: snapshot.config, references: snapshot.references, durationMs: performance.now() - batchStartedAt, status: "failed", error: errorMessage }));
+            await saveLog(buildLog({ prompt: snapshot.text, model, config: snapshot.config, references: snapshot.references, referenceVideos: snapshot.referenceVideos, referenceAudios: snapshot.referenceAudios, durationMs: performance.now() - batchStartedAt, status: "failed", error: errorMessage }));
             message.error(errorMessage);
             setRunning(false);
         }
@@ -229,7 +305,15 @@ export default function VideoPage() {
             openConfigDialog(true);
             return null;
         }
-        return { text, config: buildVideoConfig(effectiveConfig, model), references: [...references] };
+        if (!miniMaxH3 && (referenceVideos.length || referenceAudios.length || references.some((item) => item.role && item.role !== "reference_image"))) {
+            message.error(t("videoWorkbench.h3ReferencesOnly"));
+            return null;
+        }
+        if (!miniMaxH3 && references.length > MAX_STANDARD_IMAGES) {
+            message.error(t("videoWorkbench.standardImageLimit"));
+            return null;
+        }
+        return { text, config: buildVideoConfig(effectiveConfig, model), references: [...references], referenceVideos: [...referenceVideos], referenceAudios: [...referenceAudios] };
     };
 
     const retryResult = () => {
@@ -258,7 +342,22 @@ export default function VideoPage() {
             setPrompt(payload.content);
         } else if (payload.kind === "image") {
             const stored = await uploadImage(payload.dataUrl);
-            setReferences((value) => [...value, { id: nanoid(), name: payload.title, type: stored.mimeType, dataUrl: stored.url, storageKey: stored.storageKey }].slice(0, 7));
+            setReferences((value) => [...value, { id: nanoid(), name: payload.title, type: stored.mimeType, dataUrl: stored.url, storageKey: stored.storageKey, role: "reference_image" as const }].slice(0, miniMaxH3 ? MAX_H3_IMAGES : MAX_STANDARD_IMAGES));
+        } else if (referenceVideos.length < MAX_REFERENCE_VIDEOS) {
+            try {
+                const source = (payload.storageKey ? await getMediaBlob(payload.storageKey) : null) || payload.url;
+                const stored = await uploadMediaFile(source, "video-reference");
+                if (stored.bytes > MAX_VIDEO_BYTES) {
+                    await deleteStoredMedia([stored.storageKey]);
+                    message.warning(t("videoWorkbench.videoTooLarge"));
+                } else {
+                    setReferenceVideos((value) => [...value, { id: nanoid(), name: videoFileName(payload.title), type: stored.mimeType, url: stored.url, storageKey: stored.storageKey, bytes: stored.bytes, width: stored.width, height: stored.height, durationMs: stored.durationMs }].slice(0, MAX_REFERENCE_VIDEOS));
+                }
+            } catch {
+                message.error(t("videoWorkbench.referenceUploadFailed"));
+            }
+        } else {
+            message.warning(t("videoWorkbench.referenceLimit"));
         }
         setAssetPickerOpen(false);
     };
@@ -266,6 +365,8 @@ export default function VideoPage() {
     const createSession = () => {
         setPrompt("");
         setReferences([]);
+        setReferenceVideos([]);
+        setReferenceAudios([]);
         setResults([]);
         setElapsedMs(0);
         setStartedAt(0);
@@ -357,6 +458,8 @@ export default function VideoPage() {
         setLogsOpen(false);
         setPrompt(log.prompt);
         setReferences(log.references || []);
+        setReferenceVideos(log.referenceVideos || []);
+        setReferenceAudios(log.referenceAudios || []);
         if (log.config.videoModel || log.model) updateConfig("videoModel", log.config.videoModel || log.model);
         if (log.config.size) updateConfig("size", log.config.size);
         if (log.config.vquality) updateConfig("vquality", log.config.vquality);
@@ -405,7 +508,7 @@ export default function VideoPage() {
 
                             <div className="min-w-0">
                                 <div className="mb-2 flex items-center justify-between gap-3">
-                                    <span className="text-base font-semibold">{t("videoWorkbench.references")}</span>
+                                    <span className="text-base font-semibold">{t("videoWorkbench.referenceAssets")}</span>
                                     <div className="flex gap-2">
                                         <Button size="small" icon={<ClipboardPaste className="size-3.5" />} onClick={() => void addReferencesFromClipboard()}>
                                             {t("workbench.clipboard")}
@@ -416,7 +519,7 @@ export default function VideoPage() {
                                     </div>
                                 </div>
                                 <div
-                                    className={`hover-scrollbar hover-scrollbar-hint flex min-h-24 w-full min-w-0 max-w-full gap-2 overflow-x-scroll overflow-y-hidden rounded-lg border border-dashed p-2 pb-3 overscroll-x-contain transition-colors ${referenceDragTarget ? "border-stone-900 bg-stone-100/80 dark:border-stone-100 dark:bg-stone-900/80" : "border-stone-300 dark:border-stone-700"}`}
+                                    className={`space-y-3 rounded-lg border border-dashed p-2 transition-colors ${referenceDragTarget ? "border-stone-900 bg-stone-100/80 dark:border-stone-100 dark:bg-stone-900/80" : "border-stone-300 dark:border-stone-700"}`}
                                     onDragEnter={handleReferenceDragEnter}
                                     onDragOver={(event) => {
                                         event.preventDefault();
@@ -425,17 +528,80 @@ export default function VideoPage() {
                                     onDragLeave={handleReferenceDragLeave}
                                     onDrop={handleReferenceDrop}
                                 >
-                                    {references.map((item, index) => (
-                                        <div key={item.id} className="group relative size-20 shrink-0 overflow-hidden rounded-md border border-stone-200 dark:border-stone-800">
-                                            <img src={item.dataUrl} alt={item.name} className="size-full object-cover" />
-                                            <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">{index + 1}</span>
-                                            <ReferenceOrderButtons index={index} total={references.length} onMove={(offset) => setReferences((value) => moveListItem(value, index, offset))} />
-                                            <button type="button" className="absolute right-1 top-1 hidden size-6 items-center justify-center rounded bg-black/60 text-white group-hover:flex" onClick={() => setReferences((value) => value.filter((ref) => ref.id !== item.id))} aria-label={t("videoWorkbench.removeImage")}>
-                                                <Trash2 className="size-3.5" />
-                                            </button>
+                                    <div>
+                                        <div className="mb-1.5 flex items-center gap-2 text-xs font-medium text-stone-600 dark:text-stone-300">
+                                            <span>{t("videoWorkbench.references")}</span>
+                                            <Tag className="m-0 text-[10px]">{references.length}/{miniMaxH3 ? MAX_H3_IMAGES : MAX_STANDARD_IMAGES}</Tag>
                                         </div>
-                                    ))}
-                                    {!references.length ? <div className="flex min-w-full items-center justify-center text-sm text-stone-500">{referenceDragTarget ? t("videoWorkbench.dropReferences") : t("videoWorkbench.noImages")}</div> : null}
+                                        <div className="hover-scrollbar hover-scrollbar-hint flex min-h-24 gap-2 overflow-x-auto pb-1">
+                                            {references.map((item, index) => (
+                                                <div key={item.id} className="w-28 shrink-0">
+                                                    <div className="group relative h-20 overflow-hidden rounded-md border border-stone-200 dark:border-stone-800">
+                                                        <img src={item.dataUrl} alt={item.name} className="size-full object-cover" />
+                                                        <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">{index + 1}</span>
+                                                        <ReferenceOrderButtons index={index} total={references.length} onMove={(offset) => setReferences((value) => moveListItem(value, index, offset))} />
+                                                        <button type="button" className="absolute right-1 top-1 hidden size-6 items-center justify-center rounded bg-black/60 text-white group-hover:flex" onClick={() => setReferences((value) => value.filter((ref) => ref.id !== item.id))} aria-label={t("videoWorkbench.removeImage")}>
+                                                            <Trash2 className="size-3.5" />
+                                                        </button>
+                                                    </div>
+                                                    <Select
+                                                        size="small"
+                                                        className="mt-1 w-full"
+                                                        value={item.role || "reference_image"}
+                                                        disabled={!miniMaxH3}
+                                                        aria-label={t("videoWorkbench.imageRole")}
+                                                        options={referenceRoles}
+                                                        onChange={(role: NonNullable<ReferenceImage["role"]>) => updateReferenceRole(item.id, role)}
+                                                    />
+                                                </div>
+                                            ))}
+                                            {!references.length ? <div className="flex min-w-full items-center justify-center text-xs text-stone-500">{referenceDragTarget ? t("videoWorkbench.dropReferences") : t("videoWorkbench.noImages")}</div> : null}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div className="mb-1.5 flex items-center gap-2 text-xs font-medium text-stone-600 dark:text-stone-300">
+                                            <span>{t("videoWorkbench.videoReferences")}</span>
+                                            <Tag className="m-0 text-[10px]">MiniMax H3 · {referenceVideos.length}/{MAX_REFERENCE_VIDEOS}</Tag>
+                                        </div>
+                                        <div className="hover-scrollbar hover-scrollbar-hint flex min-h-20 gap-2 overflow-x-auto pb-1">
+                                            {referenceVideos.map((item, index) => (
+                                                <div key={item.id} className="group relative h-20 w-32 shrink-0 overflow-hidden rounded-md border border-stone-200 bg-stone-950 dark:border-stone-800">
+                                                    <video src={item.url} muted preload="metadata" className="size-full object-cover" />
+                                                    <VideoIcon className="pointer-events-none absolute left-2 top-2 size-4 text-white drop-shadow" />
+                                                    <ReferenceOrderButtons index={index} total={referenceVideos.length} onMove={(offset) => setReferenceVideos((value) => moveListItem(value, index, offset))} />
+                                                    <button type="button" className="absolute right-1 top-1 hidden size-6 items-center justify-center rounded bg-black/60 text-white group-hover:flex" onClick={() => setReferenceVideos((value) => value.filter((ref) => ref.id !== item.id))} aria-label={t("videoWorkbench.removeVideo")}>
+                                                        <Trash2 className="size-3.5" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {!referenceVideos.length ? <div className="flex min-w-full items-center justify-center text-xs text-stone-500">{t("videoWorkbench.noVideos")}</div> : null}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div className="mb-1.5 flex items-center gap-2 text-xs font-medium text-stone-600 dark:text-stone-300">
+                                            <span>{t("videoWorkbench.audioReferences")}</span>
+                                            <Tag className="m-0 text-[10px]">MiniMax H3 · {referenceAudios.length}/{MAX_REFERENCE_AUDIOS}</Tag>
+                                        </div>
+                                        <div className="hover-scrollbar hover-scrollbar-hint flex min-h-16 gap-2 overflow-x-auto pb-1">
+                                            {referenceAudios.map((item, index) => (
+                                                <div key={item.id} className="group relative flex h-16 w-40 shrink-0 items-center gap-2 overflow-hidden rounded-md border border-stone-200 px-2 pr-8 dark:border-stone-800">
+                                                    <Music2 className="size-5 shrink-0 text-stone-500" />
+                                                    <div className="min-w-0">
+                                                        <div className="truncate text-xs font-medium" title={item.name}>{item.name}</div>
+                                                        <div className="mt-1 text-[10px] text-stone-500">{formatDuration(item.durationMs || 0)}</div>
+                                                    </div>
+                                                    <button type="button" className="absolute right-1 top-1 hidden size-6 items-center justify-center rounded bg-black/60 text-white group-hover:flex" onClick={() => setReferenceAudios((value) => value.filter((ref) => ref.id !== item.id))} aria-label={t("videoWorkbench.removeAudio")}>
+                                                        <Trash2 className="size-3.5" />
+                                                    </button>
+                                                    <ReferenceOrderButtons index={index} total={referenceAudios.length} onMove={(offset) => setReferenceAudios((value) => moveListItem(value, index, offset))} />
+                                                </div>
+                                            ))}
+                                            {!referenceAudios.length ? <div className="flex min-w-full items-center justify-center text-xs text-stone-500">{t("videoWorkbench.noAudio")}</div> : null}
+                                        </div>
+                                    </div>
+                                    {!miniMaxH3 && (referenceVideos.length || referenceAudios.length || references.some((item) => item.role && item.role !== "reference_image")) ? <div className="text-xs text-amber-600 dark:text-amber-400">{t("videoWorkbench.h3ReferencesOnly")}</div> : null}
                                 </div>
                             </div>
 
@@ -481,7 +647,7 @@ export default function VideoPage() {
             <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,video/mp4,video/quicktime,audio/mpeg,audio/wav,audio/x-wav,.mp3,.wav,.mp4,.mov"
                 multiple
                 className="hidden"
                 onChange={(event) => {
@@ -676,6 +842,8 @@ async function normalizeLog(log: Partial<GenerationLog>): Promise<GenerationLog>
             dataUrl: await resolveImageUrl(item.storageKey, item.dataUrl),
         })),
     );
+    const referenceVideos = await Promise.all((log.referenceVideos || []).map(async (item) => ({ ...item, url: await resolveMediaUrl(item.storageKey, item.url) })));
+    const referenceAudios = await Promise.all((log.referenceAudios || []).map(async (item) => ({ ...item, url: await resolveMediaUrl(item.storageKey, item.url) })));
     const config = normalizeLogConfig(log);
     return {
         id: log.id || nanoid(),
@@ -686,6 +854,8 @@ async function normalizeLog(log: Partial<GenerationLog>): Promise<GenerationLog>
         model: log.model || config.videoModel || "",
         config,
         references,
+        referenceVideos,
+        referenceAudios,
         durationMs: log.durationMs || 0,
         size: log.size || config.size || "",
         resolution: normalizeResolution(log.resolution || config.vquality || ""),
@@ -701,6 +871,8 @@ function serializeLog(log: GenerationLog): GenerationLog {
     return {
         ...log,
         references: log.references.map((item) => ({ ...item, dataUrl: item.storageKey ? "" : item.dataUrl })),
+        referenceVideos: log.referenceVideos.map((item) => ({ ...item, url: item.storageKey ? "" : item.url })),
+        referenceAudios: log.referenceAudios.map((item) => ({ ...item, url: item.storageKey ? "" : item.url })),
         video: log.video?.storageKey ? { ...log.video, url: "" } : log.video,
     };
 }
@@ -735,7 +907,7 @@ function normalizeLogConfig(log: Partial<GenerationLog>): GenerationLogConfig {
     };
 }
 
-function buildLog({ prompt, model, config, references, durationMs, status, task, video, error }: { prompt: string; model: string; config: AiConfig; references: ReferenceImage[]; durationMs: number; status: GenerationLog["status"]; task?: VideoGenerationTask; video?: GeneratedVideo; error?: string }): GenerationLog {
+function buildLog({ prompt, model, config, references, referenceVideos, referenceAudios, durationMs, status, task, video, error }: { prompt: string; model: string; config: AiConfig; references: ReferenceImage[]; referenceVideos: ReferenceVideo[]; referenceAudios: ReferenceAudio[]; durationMs: number; status: GenerationLog["status"]; task?: VideoGenerationTask; video?: GeneratedVideo; error?: string }): GenerationLog {
     const logConfig = {
         model: config.model,
         videoModel: config.videoModel,
@@ -754,6 +926,8 @@ function buildLog({ prompt, model, config, references, durationMs, status, task,
         model,
         config: logConfig,
         references,
+        referenceVideos,
+        referenceAudios,
         durationMs,
         size: logConfig.size,
         resolution: logConfig.vquality,
@@ -766,7 +940,7 @@ function buildLog({ prompt, model, config, references, durationMs, status, task,
 }
 
 function buildVideoConfig(config: AiConfig, model: string): AiConfig {
-    const miniMaxH3 = modelOptionName(model).toLowerCase() === "minimax-h3";
+    const miniMaxH3 = isMiniMaxH3Model(model);
     return {
         ...config,
         model,
@@ -809,6 +983,22 @@ function normalizeMiniMaxH3Resolution(value: string) {
 
 function normalizeResolution(value: string) {
     return normalizeVideoResolutionValue(value);
+}
+
+function isMiniMaxH3Model(model: string) {
+    return modelOptionName(model).toLowerCase() === "minimax-h3";
+}
+
+function referenceFileKind(file: File): "image" | "video" | "audio" | null {
+    const name = file.name.toLowerCase();
+    if (file.type.startsWith("image/")) return "image";
+    if (file.type === "video/mp4" || file.type === "video/quicktime" || /\.(mp4|mov)$/.test(name)) return "video";
+    if (["audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/wave"].includes(file.type) || /\.(mp3|wav)$/.test(name)) return "audio";
+    return null;
+}
+
+function videoFileName(title: string) {
+    return /\.(mp4|mov)$/i.test(title) ? title : `${title}.mp4`;
 }
 
 function delay(ms: number) {
