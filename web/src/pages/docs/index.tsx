@@ -117,8 +117,20 @@ export default function DocsPage() {
                         <div className="mt-4 space-y-4 leading-7 text-stone-600 dark:text-stone-300">
                             <p>{chinese ? "Agent 是可选的本地桥接器，用来让 Codex 读取和操作当前画布。生图、视频生成和素材管理本身不依赖 Agent。" : "The Agent is an optional local bridge that lets Codex read and operate the active canvas. Image/video generation and asset management do not require it."}</p>
                             <p>{chinese ? "它需要访问用户本机的 Codex、Skills 和工作区，因此不能作为多人共享服务部署在 Relay 服务器。正确方式是每位需要 Agent 的用户在自己的电脑上运行 WorldCodes Canvas Agent，再通过 localhost 与网页连接。" : "It needs access to the user's local Codex, Skills, and workspace, so it must not run as a shared service on Relay. Each Agent user runs WorldCodes Canvas Agent locally and connects the site through localhost."}</p>
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="rounded-xl border border-stone-200 p-4 dark:border-stone-800">
+                                    <h3 className="font-medium text-stone-950 dark:text-stone-100">{chinese ? "方式一：WorldCodes Codex 插件" : "Option 1: WorldCodes Codex plugin"}</h3>
+                                    <p className="mt-2 text-sm leading-6">{chinese ? "安装自有插件后，新建 Codex 任务并输入“打开 WorldCodes Canvas”。插件会启动自有 MCP，并按需启动 Agent 和打开正式站。" : "After installing the owned plugin, start a new Codex task and enter “Open WorldCodes Canvas”. The plugin starts its own MCP and, when needed, the Agent and official site."}</p>
+                                    <pre className="mt-3 overflow-x-auto rounded-lg bg-stone-950 p-3 text-xs leading-6 text-stone-100"><code>{"codex plugin marketplace add lori-super/worldcodes-canvas\ncodex plugin add worldcodes-canvas@worldcodes-canvas"}</code></pre>
+                                </div>
+                                <div className="rounded-xl border border-stone-200 p-4 dark:border-stone-800">
+                                    <h3 className="font-medium text-stone-950 dark:text-stone-100">{chinese ? "方式二：直接运行 WorldCodes Agent" : "Option 2: Run WorldCodes Agent directly"}</h3>
+                                    <p className="mt-2 text-sm leading-6">{chinese ? "只需要网页右侧对话时，可直接运行 WorldCodes 自托管 Agent；它不会安装 MCP。" : "For web-side chat only, run the self-hosted WorldCodes Agent directly. This does not install MCP."}</p>
+                                    <pre className="mt-3 overflow-x-auto rounded-lg bg-stone-950 p-3 text-xs leading-6 text-stone-100"><code>npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.0.tgz</code></pre>
+                                </div>
+                            </div>
                             <div className="rounded-xl border border-amber-300/50 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-                                {chinese ? "站点已显示 Agent 入口，但对话依赖用户电脑上的 WorldCodes Canvas Agent；Relay 不保存或代跑本地工作区。" : "The Agent entry is visible, but chat requires WorldCodes Canvas Agent on the user's computer; Relay neither stores nor runs local workspaces."}
+                                {chinese ? "Agent 启动后会输出 Local URL 与 Connect token。网页默认自动发现；失败时再手动填写。插件/MCP 与网页 Agent 是两个本机进程，读取同一份连接配置；Relay 不保存或代跑本地工作区。" : "After startup, the Agent prints a Local URL and Connect token. The site discovers them automatically by default; enter them manually only if needed. Plugin/MCP and the web Agent are separate local processes that share connection settings; Relay never stores or runs local workspaces."}
                             </div>
                         </div>
                     </section>

@@ -1,39 +1,66 @@
 ---
-title: Local Agent
-description: Positioning and release requirements for WorldCodes Canvas Agent
+title: Codex App Plugin and Local Agent
+description: Install and use the WorldCodes-owned Canvas plugin and Agent
 ---
 
-# Local Agent
+# Codex App Plugin and Local Agent
 
-WorldCodes Canvas Agent is an optional local bridge that lets Codex read and operate the active canvas. Image generation, video generation, reference assets, and temporary R2 uploads do not depend on it.
+WorldCodes Canvas provides its own Codex plugin and local Agent. After installation, ask Codex to “Open WorldCodes Canvas” to open the site, read and create nodes, connect workflows, and start generation.
 
-## Why it does not run on Relay
+Image/video generation, reference media, and temporary R2 uploads do not require the Agent.
 
-The Agent needs the user's local Codex login, Skills, workspace, and files. A shared Relay deployment cannot provide those capabilities safely. Canvas Web and Relay run on the server, while each Agent user runs a private local process connected through localhost.
+## Option 1: Install the WorldCodes Codex plugin
 
-## Current status
+```bash
+codex plugin marketplace add lori-super/worldcodes-canvas
+codex plugin add worldcodes-canvas@worldcodes-canvas
+```
 
-The main site exposes the Agent entry, and this repository now contains the WorldCodes-owned plugin, MCP configuration, and Agent source. None of them installs or launches the upstream plugin, Agent package, or website. The official package is downloaded from the WorldCodes Canvas site.
+Start a new Codex task after installation and enter:
 
-Start the local Agent:
+```text
+Open WorldCodes Canvas
+```
+
+The plugin loads the WorldCodes Canvas MCP. Its `open-canvas` Skill starts the self-hosted WorldCodes Agent, reads the Local URL and Connect token, opens `https://canvas.worldcodes.online/`, and connects automatically.
+
+## Option 2: Run the Agent directly
+
+For web-side chat without loading Canvas MCP tools into a Codex task, run:
 
 ```bash
 npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.0.tgz
 ```
 
-Internal developers can build the Agent from local source:
+The Agent prints a Local URL and Connect token. The site normally discovers them automatically; enter them manually in the Agent panel only if discovery fails.
+
+## MCP versus the web Agent
+
+- The plugin's MCP process provides canvas tools to Codex.
+- The regular Agent process provides the local web connection and sidebar chat.
+- Both read the same local connection settings but have different responsibilities.
+- Running the regular Agent alone does not install MCP or add tools to the Codex context.
+
+The compatibility MCP ID `infinite-canvas` and local directory `~/.infinite-canvas` remain temporarily for existing users. The plugin, Agent package, service name, repository, and site are all provided by WorldCodes.
+
+## Security boundary
+
+The Agent needs access to the user's local Codex login, Skills, workspace, and files, so it runs only on the user's computer. It binds to `127.0.0.1`, authenticates the site with a token, and locks allowed Origins. Relay never stores or runs local workspaces.
+
+## Update and removal
+
+Reinstall the plugin after changing its manifest, MCP configuration, or Skills, then start a new Codex task.
+
+```bash
+codex plugin remove worldcodes-canvas@worldcodes-canvas
+codex mcp remove infinite-canvas
+```
+
+## Local development
 
 ```bash
 cd /absolute/path/to/worldcodes-canvas/canvas-agent
 npm install
 npm run build
-node dist/index.js
+node dist/index.js --debug
 ```
-
-The MCP ID `infinite-canvas` and local directory `~/.infinite-canvas` remain compatibility identifiers so existing local settings and data continue to work; neither is presented as the product brand.
-
-## Update requirements
-
-1. Build and publish the self-hosted Agent package.
-2. Publish and verify the repository's `worldcodes-canvas` Codex plugin.
-3. Complete signing, version updates, and installation guidance.

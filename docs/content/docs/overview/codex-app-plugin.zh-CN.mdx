@@ -1,43 +1,88 @@
 ---
-title: 本地 Agent
-description: WorldCodes Canvas 本地 Agent 的定位与启用条件
+title: Codex App 插件与本地 Agent
+description: 安装并使用 WorldCodes Canvas 自有插件和 Agent
 ---
 
-# 本地 Agent
+# Codex App 插件与本地 Agent
 
-WorldCodes Canvas Agent 是可选的本地桥接器，用来让 Codex 读取和操作当前画布。图片生成、视频生成、参考素材和 R2 临时上传都不依赖 Agent。
+WorldCodes Canvas 提供自有 Codex 插件与本地 Agent。安装后，可以在 Codex 中直接说“打开 WorldCodes Canvas”，让 Codex 打开画布、读取和创建节点、连接流程并触发生成。
 
-## 为什么不能放在 Relay
+图片生成、视频生成、参考素材和 R2 临时上传不依赖 Agent。
 
-Agent 需要访问用户电脑上的 Codex 登录状态、Skills、工作区和本地文件。把它作为多人共享服务放到 Relay 会失去这些本机能力，也会带来账号与文件隔离风险。因此：
+## 方式一：安装 WorldCodes Codex 插件
 
-- Canvas Web 与 Relay 可以部署在服务器。
-- Agent 只能运行在每位用户自己的电脑。
-- 网页仅通过 localhost 与该用户的 Agent 通信。
+```bash
+codex plugin marketplace add lori-super/worldcodes-canvas
+codex plugin add worldcodes-canvas@worldcodes-canvas
+```
 
-## 当前状态
+安装完成后新建 Codex 任务，然后输入：
 
-主站已显示 Agent 入口，仓库也已提供 WorldCodes 自有插件、MCP 配置和 Agent 源码；其中不再引用或启动上游插件、Agent 包和站点。正式安装包固定从 WorldCodes Canvas 自有站点下载。
+```text
+打开 WorldCodes Canvas
+```
 
-启动本地 Agent：
+插件会加载 WorldCodes Canvas MCP。`open-canvas` Skill 会启动 WorldCodes 自托管 Agent，读取 `Local URL` 与 `Connect token`，打开 `https://canvas.worldcodes.online/` 并自动连接。
+
+画布打开后，可以继续要求 Codex：
+
+```text
+读取当前画布并总结节点结构
+根据选中节点创建一组生图提示词
+把这些节点整理成一个生成流程
+```
+
+## 方式二：直接运行 Agent
+
+只需要网页右侧对话、不希望在 Codex 任务中加载画布 MCP 时，可以直接运行：
 
 ```bash
 npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.0.tgz
 ```
 
-如需内部开发，可从本地源码构建 Agent：
+启动后会输出：
+
+```text
+Local URL: http://127.0.0.1:17371
+Connect token: xxxxxx
+```
+
+网页默认自动发现连接信息；失败时再在右侧 Agent 面板手动填写。
+
+## MCP 与网页 Agent 的区别
+
+- 插件启动的 MCP 进程向 Codex 提供画布工具。
+- 普通 Agent 进程向网页提供本机连接与右侧对话。
+- 两个进程读取同一份本机配置，但职责不同。
+- 仅运行普通 Agent 不会安装 MCP，也不会增加 Codex 工具上下文。
+
+兼容 MCP ID `infinite-canvas` 与本地目录 `~/.infinite-canvas` 暂时保留已有用户配置；实际插件、Agent 包、服务名、仓库与站点均由 WorldCodes 提供。
+
+## 安全边界
+
+Agent 需要访问用户电脑上的 Codex 登录状态、Skills、工作区和本地文件，因此只能运行在用户电脑。它默认监听 `127.0.0.1`，网页使用 token 连接并锁定允许的 Origin；Relay 不保存或代跑本地工作区。
+
+## 更新与移除
+
+插件的 manifest、MCP 配置或 Skills 更新后，需要重新安装，并新建 Codex 任务加载最新工具。
+
+移除插件：
+
+```bash
+codex plugin remove worldcodes-canvas@worldcodes-canvas
+```
+
+移除旧版手动 MCP：
+
+```bash
+codex mcp remove infinite-canvas
+```
+
+## 本地开发排查
 
 ```bash
 cd /absolute/path/to/worldcodes-canvas/canvas-agent
 npm install
 npm run build
-node dist/index.js
+node dist/index.js --debug
 ```
-
-MCP ID `infinite-canvas` 与本地目录 `~/.infinite-canvas` 暂时作为兼容标识保留，避免已有用户配置和数据失效；它们不会显示为站点品牌。
-
-## 更新条件
-
-1. 构建并发布自有 Agent 安装包。
-2. 发布并验证仓库中的 `worldcodes-canvas` Codex 插件。
-3. 完成版本更新、签名和安装说明。
