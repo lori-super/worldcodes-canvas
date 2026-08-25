@@ -498,7 +498,8 @@ export function LocalAgentPanel({ embedded, headless, autoConnect }: { embedded?
             enqueueEvent(() => {
                 if (data.conversation) applyConversationState(data.conversation);
                 else applyWorkspaceChange(data);
-                if (!data.draftThread) void loadThreads(Boolean(data.emptyThread));
+                if (data.draftThread) setAgentState({ loadingThreads: false });
+                else void loadThreads(Boolean(data.emptyThread));
             });
         });
         source.addEventListener("chat_message", (event) => {
