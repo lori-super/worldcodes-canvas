@@ -126,7 +126,7 @@ export default function DocsPage() {
                                 <div className="rounded-xl border border-stone-200 p-4 dark:border-stone-800">
                                     <h3 className="font-medium text-stone-950 dark:text-stone-100">{chinese ? "方式二：直接运行 WorldCodes Agent" : "Option 2: Run WorldCodes Agent directly"}</h3>
                                     <p className="mt-2 text-sm leading-6">{chinese ? "只需要网页右侧对话时，可直接运行 WorldCodes 自托管 Agent；它不会安装 MCP。" : "For web-side chat only, run the self-hosted WorldCodes Agent directly. This does not install MCP."}</p>
-                                    <pre className="mt-3 overflow-x-auto rounded-lg bg-stone-950 p-3 text-xs leading-6 text-stone-100"><code>npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.0.tgz</code></pre>
+                                    <pre className="mt-3 overflow-x-auto rounded-lg bg-stone-950 p-3 text-xs leading-6 text-stone-100"><code>npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.1.tgz</code></pre>
                                 </div>
                             </div>
                             <div className="rounded-xl border border-amber-300/50 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">

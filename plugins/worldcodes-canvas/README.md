@@ -20,7 +20,7 @@ codex plugin add worldcodes-canvas@worldcodes-canvas
 如果只需要网页右侧对话、不需要在 Codex 任务中加载画布工具，也可以直接运行 Agent：
 
 ```bash
-npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.0.tgz
+npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.1.tgz
 ```
 
 直接运行 Agent 不会安装 MCP。插件更新后请重新安装并新建 Codex 任务，以加载最新 Skills 和工具。

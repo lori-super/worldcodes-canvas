@@ -1,6 +1,6 @@
 {
   "name": "@worldcodes/canvas-agent",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "WorldCodes Canvas 的本地 Codex Agent 与 MCP 桥接器",
   "author": "WorldCodes",
   "homepage": "https://canvas.worldcodes.online/docs",
@@ -20,7 +20,7 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "debug": "tsx src/index.ts --debug",
-    "test": "tsx --test src/canvas/session.test.ts src/agent/codex-client.test.ts src/agent/codex-history.test.ts src/agent/message-metadata.test.ts src/skills/store.test.ts",
+    "test": "tsx --test src/config.test.ts src/canvas/operations.test.ts src/canvas/session.test.ts src/agent/codex-client.test.ts src/agent/codex-history.test.ts src/agent/message-metadata.test.ts src/skills/store.test.ts src/utils/agent-runtime.test.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "prepack": "npm run build"

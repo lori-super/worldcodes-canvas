@@ -47,7 +47,7 @@ Built-in and local node plugins remain available. Production does not execute re
 
 ## Local Agent
 
-The optional Agent needs each user's local Codex, Skills, and workspace and therefore cannot run as a shared Relay service. It remains hidden until a WorldCodes-owned package is released; core generation does not depend on it.
+The optional Agent needs each user's local Codex, Skills, and workspace and therefore cannot run as a shared Relay service. WorldCodes ships its own Agent package; core generation does not depend on it.
 
 See [Local Agent](/docs/overview/codex-app-plugin).
 
@@ -56,3 +56,7 @@ See [Local Agent](/docs/overview/codex-app-plugin).
 - Browser data is not synchronized across devices automatically.
 - A static local preview does not include Relay; generation requires a same-origin reverse proxy or an explicitly allowed self-hosted endpoint.
 - The canvas is optimized for desktop use.
+
+## Upstream 0.18 integration
+
+Adds grouping/ungrouping, a node tree, reference previews, video frame extraction and text variants. Image resolution and aspect ratio are separate settings. WorldCodes video profiles retain their validated limits. The optional local proxy is off by default; the self-hosted WorldCodes proxy forwards external model and WebDAV requests when enabled. Image retries reuse returned results; video tasks resume after refresh.

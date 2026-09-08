@@ -7,13 +7,13 @@ WorldCodes Canvas Agent 是可选的本地桥接器，让 Codex 读取和操作�
 正式安装包由 WorldCodes Canvas 自有站点提供：
 
 ```bash
-npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.0.tgz
+npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.1.tgz
 ```
 
 需要排查连接、线程、Codex app-server 或工具调用问题时：
 
 ```bash
-npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.0.tgz --debug
+npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.1.tgz --debug
 ```
 
 Agent 启动后会输出：
@@ -70,7 +70,7 @@ codex plugin remove worldcodes-canvas@worldcodes-canvas
 不使用插件时，可手动注册 WorldCodes 自托管 Agent 的 MCP 模式：
 
 ```bash
-codex mcp add infinite-canvas -- npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.0.tgz mcp
+codex mcp add infinite-canvas -- npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.1.tgz mcp
 ```
 
 构建后可用绝对路径注册本地 MCP：
