@@ -17,8 +17,32 @@ canvas.worldcodes.online {
 		X-Frame-Options "DENY"
 	}
 
-	# One reverse_proxy handler keeps the Relay blue-green upstream count
-	# deterministic. Method and path must both match the public Canvas contract.
+	# BEGIN FIXED IMAGE RESULT PROXY
+	# Only a public image UUID can reach this fixed origin; caller credentials are removed.
+	@canvasImageResult {
+		method GET
+		path_regexp canvasImageResult ^/v1/images/content/pandatk/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$
+		expression `{http.request.uri.query} == ""`
+	}
+	handle @canvasImageResult {
+		header Cache-Control "private, no-store"
+		rewrite * /r2/images/{re.canvasImageResult.1}
+		reverse_proxy https://download.xmimage2.cc.cd {
+			header_up Host download.xmimage2.cc.cd
+			header_up -Authorization
+			header_up -Cookie
+			header_up -Origin
+			header_up -Referer
+			header_down -Set-Cookie
+			transport http {
+				dial_timeout 10s
+				response_header_timeout 30s
+			}
+		}
+	}
+	# END FIXED IMAGE RESULT PROXY
+
+	# Exactly one local Relay upstream remains in the blue-green contract.
 	@canvasAPI expression `
 	(method('GET') && path('/v1/models', '/v1/images/content/*', '/v1/images/tasks/*', '/v1/videos/*')) ||
 	(method('POST') && path('/v1/responses', '/v1/audio/speech', '/v1/images/generations', '/v1/images/edits', '/v1/videos', '/v1/media/uploads/presign', '/v1/media/uploads/*', '/v1beta/models/*')) ||

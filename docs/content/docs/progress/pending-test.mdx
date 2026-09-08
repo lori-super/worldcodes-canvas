@@ -5,6 +5,8 @@ description: Implemented changes that still need manual verification
 
 # Pending Tests
 
+- 图片领取恢复：生成结果的外链保留在图片槽中，下载或保存失败后，单图重试只领取原结果；刷新后仍可重领。节点显示具体 HTTP / 网络 / 保存错误。PandaTK 标准结果 URL 经 `/v1/images/content/pandatk/:uuid` 同源下载。
+
 - PandaTK 图片领取：刷新页面加载最新 CSP 后，确认图片链接可以下载并保存到画布；检查线上 `connect-src` 包含 `https://download.xmimage2.cc.cd`。历史同步请求没有持久化结果，不能靠点击重新生成恢复原图。
 
 - 视频领取恢复：在真实画布视频节点检查下载进度、120 秒下载超时、30 秒查询超时、15 秒存储超时和 5 秒元数据兜底；下载失败点击“重新领取视频”与刷新页面只能查询原任务，不能新增生成请求。旧任务可在视频创作台“领取已有视频”输入任务 ID；领取仍由原视频渠道 Key 鉴权。

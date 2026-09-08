@@ -1,4 +1,8 @@
 export default {
+    imageDelivery: {
+        downloadFailed: "图片领取失败：{{reason}}", httpError: "图片下载返回 HTTP {{status}}", invalidImage: "返回内容不是有效图片",
+        storageTimeout: "图片保存超时，请重试领取。", reclaim: "领取已生成图片",
+    },
     videoDelivery: {
         downloading: "视频已生成，正在下载", saving: "视频已下载，正在保存", reclaim: "重新领取视频",
         timeout: "领取视频超时，任务已保留。请重新领取，不会重新生成。", storageTimeout: "视频保存超时，请重新领取。",

@@ -82,11 +82,11 @@ function readVideoMeta(url: string) {
     });
 }
 
-export async function withMediaStorageTimeout<T>(operation: Promise<T>): Promise<T> {
+export async function withMediaStorageTimeout<T>(operation: Promise<T>, errorMessage = i18n.t("videoDelivery.storageTimeout")): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
         return await Promise.race([operation, new Promise<never>((_, reject) => {
-            timer = setTimeout(() => reject(new Error(i18n.t("videoDelivery.storageTimeout"))), 15_000);
+            timer = setTimeout(() => reject(new Error(errorMessage)), 15_000);
         })]);
     } finally {
         clearTimeout(timer);
