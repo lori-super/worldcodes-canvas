@@ -2,6 +2,7 @@ import axios from "axios";
 import { nanoid } from "nanoid";
 
 import i18n from "@/i18n";
+import { videoProfile, normalizeProfileVideo } from "@/lib/video-profiles";
 import { dataUrlToFile } from "@/lib/image-utils";
 import { getMediaBlob, uploadMediaFile, type UploadedFile } from "@/services/file-storage";
 import { getImageBlob, imageToDataUrl } from "@/services/image-storage";
@@ -14,7 +15,11 @@ import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
 type VideoResponse = { id?: string; task_id?: string; status?: string; error?: { message?: string }; url?: string; result_url?: string; video_url?: string; content?: { video_url?: string; url?: string } | null };
 type ApiVideoResponse = VideoResponse | { code?: number | string; data?: VideoResponse | null; msg?: string; message?: string; error?: { message?: string } };
 type ApiEnvelope<T> = T | { code?: number | string; data?: T | null; msg?: string; message?: string; error?: { message?: string } };
-type RequestOptions = { signal?: AbortSignal };
+export type VideoDeliveryProgress = { phase: "generating" | "downloading" | "saving"; loaded?: number; total?: number };
+type RequestOptions = { signal?: AbortSignal; onProgress?: (progress: VideoDeliveryProgress) => void };
+type VideoRequestOptions = RequestOptions & { task?: VideoGenerationTask; onTaskCreated?: (task: VideoGenerationTask) => Promise<void> };
+export const VIDEO_QUERY_TIMEOUT_MS = 30_000;
+export const VIDEO_DOWNLOAD_TIMEOUT_MS = 120_000;
 const apiText = (key: string, options?: Record<string, unknown>) => i18n.t(`apiErrors.${key}`, options);
 
 export type VideoGenerationResult = { blob?: Blob; url?: string; mimeType?: string };
@@ -36,15 +41,16 @@ function aiHeaders(config: AiConfig, contentType?: string) {
     };
 }
 
-export async function requestVideoGeneration(config: AiConfig, prompt: string, references: VideoGenerationReferences = {}, options?: RequestOptions): Promise<VideoGenerationResult> {
-    const task = await createVideoGenerationTask(config, prompt, references, options);
-    for (let attempt = 0; attempt < 120; attempt += 1) {
+export async function requestVideoGeneration(config: AiConfig, prompt: string, references: VideoGenerationReferences = {}, options?: VideoRequestOptions): Promise<VideoGenerationResult> {
+    const task = options?.task || await createVideoGenerationTask(config, prompt, references, options);
+    if (!options?.task) await options?.onTaskCreated?.(task);
+    for (let attempt = 0; attempt < 360; attempt += 1) {
         if (options?.signal?.aborted) throw new DOMException("Aborted", "AbortError");
         const state = await pollVideoGenerationTask(config, task, options);
         if (state.status === "completed") return state.result;
         if (state.status === "failed") throw new Error(state.error);
-        if (attempt === 119) throw new Error(apiText("videoTimeout", { provider: "" }));
-        await delay(2500, options?.signal);
+        if (attempt === 359) throw new Error(apiText("videoTimeout", { provider: "" }));
+        await delay(5000, options?.signal);
     }
     throw new Error(apiText("videoTimeout", { provider: "" }));
 }
@@ -58,6 +64,7 @@ export async function createVideoGenerationTask(config: AiConfig, prompt: string
         return createPluginVideoTask(requestConfig, selectedModel, script, prompt, references.images || [], options);
     }
     assertVideoConfig(requestConfig, requestConfig.model);
+    if (videoProfile(requestConfig.model)) return createCompatibleVideoTask(requestConfig, selectedModel, prompt, references, options);
     if (isMiniMaxH3(requestConfig.model)) return createMiniMaxH3Task(requestConfig, selectedModel, prompt, references, options);
     assertStandardVideoReferences(references, 7);
     return createOpenAIVideoTask(requestConfig, selectedModel, prompt, references.images || [], options);
@@ -160,9 +167,44 @@ async function createMiniMaxH3Task(config: AiConfig, model: string, prompt: stri
     }
 }
 
+async function createCompatibleVideoTask(config: AiConfig, model: string, prompt: string, references: VideoGenerationReferences, options?: RequestOptions): Promise<VideoGenerationTask> {
+    const name = modelOptionName(model);
+    const profile = videoProfile(name)!;
+    const images = references.images || [], videos = references.videos || [], audios = references.audios || [];
+    if (!prompt.trim()) throw new Error(apiText("videoPromptRequired"));
+    if (images.length > profile.images || videos.length > profile.videos || audios.length > profile.audios) throw new Error(`该模型最多支持 ${profile.images} 张图片、${profile.videos} 个视频和 ${profile.audios} 条音频`);
+    const normalized = normalizeProfileVideo(name, config.videoSeconds, config.vquality, config.size);
+    const grok = name.startsWith("grok-imagine-video");
+    if (grok && ![0, 1, 7].includes(images.length)) throw new Error("Grok 需要 1 张首帧图或恰好 7 张参考图");
+    if (name === "grok-imagine-video" && images.length === 7 && Number(normalized.videoSeconds) > 10) throw new Error("Grok 参考图模式最多支持 10 秒");
+    const prepared = await prepareMiniMaxH3Content(config, prompt, references, options?.signal);
+    try {
+        const urls = (type: string) => prepared.content.flatMap(item => {
+            if (item.type !== type || item.type === "text") return [];
+            const entry = item as Exclude<MiniMaxH3Content, { type: "text" }>;
+            const url = entry.upload_id ? prepared.urls[entry.upload_id] : "image_url" in entry ? entry.image_url.url : "video_url" in entry ? entry.video_url.url : entry.audio_url.url;
+            return url ? [url] : [];
+        });
+        const body = { model: name, prompt, seconds: normalized.videoSeconds, resolution: normalized.vquality,
+            ...(!(grok && images.length === 1) ? { aspect_ratio: normalized.size } : {}),
+            images: urls("image_url"), videos: urls("video_url"), audios: urls("audio_url"),
+            ...(grok ? { video_mode: images.length === 1 ? "first_frame" : images.length === 7 ? "reference" : "text" } : {}),
+        };
+        const created = unwrapVideoResponse((await axios.post<ApiVideoResponse>(aiApiUrl(config, "/videos"), body, { headers: aiHeaders(config, "application/json"), signal: options?.signal })).data);
+        const id = created.id || created.task_id;
+        if (!id) throw new Error(apiText("noVideoTaskId"));
+        return { id, provider: "openai", model, temporaryUploadIds: prepared.uploadIds };
+    } catch (error) {
+        const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+        if (status !== undefined && status >= 400 && status < 500) await deleteTemporaryMedia(config, prepared.uploadIds);
+        throw new Error(readAxiosError(error, apiText("videoTaskCreateFailed")));
+    }
+}
+
 async function prepareMiniMaxH3Content(config: AiConfig, prompt: string, references: VideoGenerationReferences, signal?: AbortSignal) {
     const content: MiniMaxH3Content[] = [{ type: "text", text: prompt }];
     const uploadIds: string[] = [];
+    const urls: Record<string, string> = {};
 
     try {
         for (const image of references.images || []) {
@@ -177,6 +219,7 @@ async function prepareMiniMaxH3Content(config: AiConfig, prompt: string, referen
             await assertMiniMaxH3ReferenceDimensions(blob, "image");
             const upload = await uploadTemporaryMedia(config, blob, image.name || "reference.png", signal);
             uploadIds.push(upload.id);
+            urls[upload.id] = upload.assetUrl;
             content.push({ type: "image_url", upload_id: upload.id, image_url: { role } });
         }
 
@@ -191,6 +234,7 @@ async function prepareMiniMaxH3Content(config: AiConfig, prompt: string, referen
             await assertMiniMaxH3ReferenceDimensions(blob, "video");
             const upload = await uploadTemporaryMedia(config, blob, video.name || "reference.mp4", signal);
             uploadIds.push(upload.id);
+            urls[upload.id] = upload.assetUrl;
             content.push({ type: "video_url", upload_id: upload.id, video_url: { role: "reference_video" } });
         }
 
@@ -204,9 +248,10 @@ async function prepareMiniMaxH3Content(config: AiConfig, prompt: string, referen
             if (!blob) throw new Error(apiText("invalidReferenceAudio"));
             const upload = await uploadTemporaryMedia(config, blob, audio.name || "reference.mp3", signal);
             uploadIds.push(upload.id);
+            urls[upload.id] = upload.assetUrl;
             content.push({ type: "audio_url", upload_id: upload.id, audio_url: { role: "reference_audio" } });
         }
-        return { content, uploadIds };
+        return { content, uploadIds, urls };
     } catch (error) {
         await deleteTemporaryMedia(config, uploadIds);
         throw error;
@@ -278,36 +323,46 @@ async function createOpenAIVideoTask(config: AiConfig, model: string, prompt: st
 
 async function pollOpenAIVideoTask(config: AiConfig, task: VideoGenerationTask, options?: RequestOptions): Promise<VideoGenerationTaskState> {
     try {
-        const video = unwrapVideoResponse((await axios.get<ApiVideoResponse>(aiApiUrl(config, `/videos/${task.id}`), { headers: aiHeaders(config), signal: options?.signal })).data);
+        const video = unwrapVideoResponse((await axios.get<ApiVideoResponse>(aiApiUrl(config, `/videos/${task.id}`), { headers: aiHeaders(config), signal: options?.signal, timeout: VIDEO_QUERY_TIMEOUT_MS })).data);
         const url = videoResultUrl(video);
         if (url) {
             const result = await videoResultFromUrl(url, options);
             await cleanupTaskUploads(config, task);
+            options?.onProgress?.({ phase: "saving" });
             return { status: "completed", result };
         }
         if (video.status === "completed" || video.status === "succeeded") {
-            const content = await axios.get<Blob>(aiApiUrl(config, `/videos/${task.id}/content`), { headers: aiHeaders(config), responseType: "blob", signal: options?.signal });
+            options?.onProgress?.({ phase: "downloading" });
+            const content = await axios.get<Blob>(aiApiUrl(config, `/videos/${task.id}/content`), {
+                headers: aiHeaders(config), responseType: "blob", signal: options?.signal, timeout: VIDEO_DOWNLOAD_TIMEOUT_MS,
+                onDownloadProgress: ({ loaded, total }) => options?.onProgress?.({ phase: "downloading", loaded, total }),
+            });
             await assertVideoBlob(content.data);
             await cleanupTaskUploads(config, task);
+            options?.onProgress?.({ phase: "saving" });
             return { status: "completed", result: { blob: content.data } };
         }
         if (video.status === "failed" || video.status === "cancelled") {
             await cleanupTaskUploads(config, task);
             return { status: "failed", error: readApiErrorMessage(video.error?.message) || apiText("videoGenerationFailed") };
         }
+        options?.onProgress?.({ phase: "generating" });
         return { status: "pending" };
     } catch (error) {
+        if (axios.isAxiosError(error) && ["ECONNABORTED", "ETIMEDOUT"].includes(error.code || "")) throw new Error(i18n.t("videoDelivery.timeout"));
         throw new Error(readAxiosError(error, apiText("videoTaskQueryFailed")));
     }
 }
 
 async function cleanupTaskUploads(config: AiConfig, task: VideoGenerationTask) {
-    if (task.temporaryUploadIds?.length) await deleteTemporaryMedia(config, task.temporaryUploadIds);
+    // Temporary uploads also expire server-side; cleanup must not block delivery.
+    if (task.temporaryUploadIds?.length) void deleteTemporaryMedia(config, task.temporaryUploadIds).catch(() => {});
 }
 
 async function videoResultFromUrl(url: string, options?: RequestOptions): Promise<VideoGenerationResult> {
     try {
-        const response = await axios.get<Blob>(url, { responseType: "blob", signal: options?.signal });
+        options?.onProgress?.({ phase: "downloading" });
+        const response = await axios.get<Blob>(url, { responseType: "blob", signal: options?.signal, timeout: VIDEO_DOWNLOAD_TIMEOUT_MS });
         await assertVideoBlob(response.data);
         return { blob: response.data };
     } catch (error) {

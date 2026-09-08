@@ -4,6 +4,7 @@ import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 
 import i18n from "@/i18n";
+import { videoProfiles, videoProfile } from "@/lib/video-profiles";
 
 export type ApiCallFormat = "openai" | "gemini";
 export type ModelCapability = "image" | "video" | "text" | "audio";
@@ -68,15 +69,17 @@ const OPENAI_BASE_URL = "https://api.openai.com";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
 const WORLD_CODES_BASE_URL = "/";
 const WORLD_CODES_CHANNEL_ID = "worldcodes";
-const WORLD_CODES_REMOVED_MODELS = new Set(["gpt-4o-mini-tts"]);
+const WORLD_CODES_REMOVED_MODELS = new Set(["gpt-4o-mini-tts", "MiniMax-H3"]);
 
 const WORLD_CODES_MODELS: ChannelModel[] = [
     { name: "grok-imagine-image-quality", displayName: "Grok Imagine", capability: "image" },
     { name: "gpt-image-2", displayName: "GPT Image 2", capability: "image" },
     { name: "nano-banana-2", displayName: "Nano Banana 2", capability: "image" },
-    { name: "MiniMax-H3", displayName: "MiniMax H3", capability: "video" },
+
     { name: "gpt-5.5", capability: "text" },
 ];
+
+const VIDEO_CHANNEL: ModelChannel = { id: "worldcodes-video", name: "WorldCodes 视频专用", baseUrl: "/", apiKey: "", apiFormat: "openai", models: Object.keys(videoProfiles).map(name => ({ name, capability: "video" })) };
 
 export const defaultConfig: AiConfig = {
     channelMode: "local",
@@ -92,10 +95,11 @@ export const defaultConfig: AiConfig = {
             apiFormat: "openai",
             models: WORLD_CODES_MODELS,
         },
+        VIDEO_CHANNEL,
     ],
     model: `${WORLD_CODES_CHANNEL_ID}::gpt-image-2`,
     imageModel: `${WORLD_CODES_CHANNEL_ID}::gpt-image-2`,
-    videoModel: `${WORLD_CODES_CHANNEL_ID}::MiniMax-H3`,
+    videoModel: "worldcodes-video::grok-imagine-video",
     textModel: `${WORLD_CODES_CHANNEL_ID}::gpt-5.5`,
     audioModel: "",
     audioVoice: "alloy",
@@ -108,7 +112,7 @@ export const defaultConfig: AiConfig = {
     videoWatermark: "false",
     systemPrompt: "",
     reasoningEffort: "auto",
-    models: WORLD_CODES_MODELS.map((model) => `${WORLD_CODES_CHANNEL_ID}::${model.name}`),
+    models: [...WORLD_CODES_MODELS.map((model) => `${WORLD_CODES_CHANNEL_ID}::${model.name}`), ...VIDEO_CHANNEL.models.map(model => `worldcodes-video::${model.name}`)],
     quality: "auto",
     size: "1:1",
     background: "",
@@ -149,7 +153,7 @@ const IMAGE_KEYWORDS = ["seedream", "gpt-image", "image", "dall-e", "dalle", "im
 /** Best-effort default capability for a freshly fetched model name; user can override in the channel editor. */
 export function guessCapability(name: string): ModelCapability {
     const value = name.toLowerCase();
-    if (value === "minimax-h3") return "video";
+    if (videoProfile(name) || value === "minimax-h3") return "video";
     if (value.includes("nano-banana")) return "image";
     if (VIDEO_KEYWORDS.some((keyword) => value.includes(keyword))) return "video";
     if (AUDIO_KEYWORDS.some((keyword) => value.includes(keyword))) return "audio";
@@ -244,7 +248,7 @@ export const useConfigStore = create<ConfigStore>()(
                         channels,
                         models,
                         imageModel: normalizeModelOptionValue(config.imageModel || config.model, channels),
-                        videoModel: normalizeModelOptionValue(config.videoModel, channels),
+                        videoModel: normalizeModelOptionValue(config.videoModel, channels) || defaultConfig.videoModel,
                         textModel: normalizeModelOptionValue(config.textModel || config.model, channels),
                         audioModel: normalizeModelOptionValue(config.audioModel, channels),
                         audioVoice: config.audioVoice || defaultConfig.audioVoice,
@@ -378,6 +382,9 @@ function normalizeChannels(config: AiConfig) {
             }),
         );
     }
+    const videos = channels.find(channel => channel.id === VIDEO_CHANNEL.id);
+    if (!videos) channels.push(createModelChannel(VIDEO_CHANNEL));
+    else videos.models = VIDEO_CHANNEL.models;
     return channels;
 }
 

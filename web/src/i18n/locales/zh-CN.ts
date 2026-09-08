@@ -1,4 +1,10 @@
 export default {
+    videoDelivery: {
+        downloading: "视频已生成，正在下载", saving: "视频已下载，正在保存", reclaim: "重新领取视频",
+        timeout: "领取视频超时，任务已保留。请重新领取，不会重新生成。", storageTimeout: "视频保存超时，请重新领取。",
+        taskSaveFailed: "任务已创建，但本地保存失败。请保留任务 ID {{id}}，使用“领取已有视频”恢复。",
+        recover: "领取已有视频", taskId: "视频任务 ID", invalidTask: "请输入有效的视频任务 ID", recoverHint: "使用生成时的视频渠道和 API Key，只领取原任务，不会重新生成或重复扣费。", recoverTitle: "领取原视频",
+    },
     meta: {
         title: "WorldCodes Canvas",
         description: "WorldCodes 多模态无限画布创作工具",
@@ -184,9 +190,12 @@ export default {
         removeVideo: "移除参考视频",
         removeAudio: "移除参考音频",
         dropReferences: "松开即可上传参考资产",
-        noImages: "暂无参考图，可拖入文件，最多 9 张",
-        noVideos: "暂无参考视频，可拖入文件，最多 3 个",
-        noAudio: "暂无参考音频，可拖入文件，最多 3 个，mp3/wav，单个 15MB 内",
+        noImages: "暂无参考图，可拖入文件，最多 {{count}} 张",
+        noVideos: "暂无参考视频，可拖入文件，最多 {{count}} 个",
+        noAudio: "暂无参考音频，可拖入文件，最多 {{count}} 个，mp3/wav，单个 15MB 内",
+        grokImages: "可不传图片；首帧模式传 1 张，参考模式需恰好 7 张",
+        noVideoSupport: "当前模型不支持参考视频",
+        noAudioSupport: "当前模型不支持参考音频",
         unsupportedFiles: "已忽略不支持的参考资产，请使用图片、mp4/mov 视频或 mp3/wav 音频",
         imageTooLarge: "已忽略超过 30MB 的参考图",
         videoTooLarge: "已忽略超过 200MB 的参考视频",

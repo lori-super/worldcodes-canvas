@@ -1,4 +1,10 @@
 export default {
+    videoDelivery: {
+        downloading: "Video generated, downloading", saving: "Video downloaded, saving", reclaim: "Retrieve video again",
+        timeout: "Retrieval timed out. The task is saved; retrieve it again without generating a new video.", storageTimeout: "Saving the video timed out. Retrieve it again.",
+        taskSaveFailed: "The task was created but could not be saved locally. Keep task ID {{id}} and use Retrieve existing video.",
+        recover: "Retrieve existing video", taskId: "Video task ID", invalidTask: "Enter a valid video task ID", recoverHint: "Use the original video channel and API key. This retrieves the existing task without creating or charging for a new generation.", recoverTitle: "Retrieve original video",
+    },
     meta: {
         title: "WorldCodes Canvas",
         description: "A multimodal infinite canvas by WorldCodes",
@@ -184,9 +190,12 @@ export default {
         removeVideo: "Remove reference video",
         removeAudio: "Remove reference audio",
         dropReferences: "Drop to upload reference assets",
-        noImages: "No reference images. Drag in up to 9 files.",
-        noVideos: "No reference videos. Drag in up to 3 files.",
-        noAudio: "No reference audio. Drag in up to 3 MP3/WAV files, each under 15 MB.",
+        noImages: "No reference images. Drag in up to {{count}} files.",
+        noVideos: "No reference videos. Drag in up to {{count}} files.",
+        noAudio: "No reference audio. Drag in up to {{count}} MP3/WAV files, each under 15 MB.",
+        grokImages: "Use no images for text mode, one for first-frame mode, or exactly seven for reference mode.",
+        noVideoSupport: "This model does not support reference videos.",
+        noAudioSupport: "This model does not support reference audio.",
         unsupportedFiles: "Unsupported reference assets were ignored. Use images, MP4/MOV video, or MP3/WAV audio.",
         imageTooLarge: "Reference images over 30 MB were ignored",
         videoTooLarge: "Reference videos over 200 MB were ignored",

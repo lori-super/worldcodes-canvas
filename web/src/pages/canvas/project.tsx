@@ -7,10 +7,10 @@ import { useTranslation } from "react-i18next";
 
 import { requestEdit, requestGeneration, requestImageQuestion } from "@/services/api/image";
 import { requestAudioGeneration, storeGeneratedAudio } from "@/services/api/audio";
-import { requestVideoGeneration, storeGeneratedVideo } from "@/services/api/video";
+import { requestVideoGeneration, storeGeneratedVideo, type VideoGenerationTask, type VideoDeliveryProgress } from "@/services/api/video";
 import { defaultConfig, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
 import { uploadImage } from "@/services/image-storage";
-import { uploadMediaFile } from "@/services/file-storage";
+import { uploadMediaFile, withMediaStorageTimeout } from "@/services/file-storage";
 import { nanoid } from "nanoid";
 import { getDataUrlByteSize, readImageMeta } from "@/lib/image-utils";
 import { canvasThemes, type CanvasBackgroundMode } from "@/lib/canvas-theme";
@@ -41,7 +41,7 @@ import { CanvasSidePanel } from "@/components/canvas/canvas-side-panel";
 import { CanvasZoomControls } from "@/components/canvas/canvas-zoom-controls";
 import { useAgentStore } from "@/stores/use-agent-store";
 import { AGENT_AVAILABLE } from "@/constant/env";
-import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
+import { useCanvasStore, flushCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { useAgentBridge } from "@/pages/canvas/hooks/use-agent-bridge";
 import { usePluginHost } from "@/pages/canvas/hooks/use-plugin-host";
 import { buildNodeMentionReferences, type CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
@@ -249,6 +249,29 @@ function InfiniteCanvasPage() {
     const selectionBoxRef = useRef(selectionBox);
     const pendingConnectionCreateRef = useRef(pendingConnectionCreate);
     const generationRequestsRef = useRef(new Map<string, CanvasGenerationRequest>());
+    const restoredVideoIdsRef = useRef<string[]>([]);
+
+    const videoRequestOptions = useCallback((nodeId: string, signal: AbortSignal, task?: VideoGenerationTask) => {
+        const patch = (metadata: Partial<NonNullable<CanvasNodeData["metadata"]>>) => {
+            const next = nodesRef.current.map((node) => node.id === nodeId ? { ...node, metadata: { ...node.metadata, ...metadata } } : node);
+            nodesRef.current = next;
+            setNodes(next);
+            return next;
+        };
+        return {
+            signal, task,
+            onTaskCreated: async (videoTask: VideoGenerationTask) => {
+                const next = patch({ videoTask, videoDelivery: { phase: "generating" } });
+                updateProject(projectId, { nodes: next, connections: connectionsRef.current });
+                try {
+                    await withMediaStorageTimeout(flushCanvasStore());
+                } catch {
+                    throw new Error(t("videoDelivery.taskSaveFailed", { id: videoTask.id }));
+                }
+            },
+            onProgress: (videoDelivery: VideoDeliveryProgress) => { patch({ videoDelivery }); },
+        };
+    }, [projectId, t, updateProject]);
 
     const createHistoryEntry = useCallback(
         (): CanvasHistoryEntry => ({
@@ -326,6 +349,7 @@ function InfiniteCanvasPage() {
 
         const restore = async () => {
             const restoredNodes = await hydrateCanvasImages(resetInterruptedGeneration(project.nodes));
+            restoredVideoIdsRef.current = restoredNodes.filter((node) => node.type === CanvasNodeType.Video && node.metadata?.videoTask && !node.metadata.content).map((node) => node.id);
             const restoredSessions = await hydrateAssistantImages(project.chatSessions || []);
             setNodes(restoredNodes);
             setConnections(project.connections);
@@ -2252,7 +2276,7 @@ function InfiniteCanvasPage() {
                                 generationConfig,
                                 effectivePrompt,
                                 { images: generationContext.referenceImages, videos: generationContext.referenceVideos, audios: generationContext.referenceAudios },
-                                { signal: controller.signal },
+                                videoRequestOptions(videoId, controller.signal, isEmptyVideoNode ? sourceNode.metadata?.videoTask : undefined),
                             ),
                         );
                         const videoSize = fitNodeSize(video.width || spec.width, video.height || spec.height, VIDEO_NODE_MAX_WIDTH, VIDEO_NODE_MAX_HEIGHT);
@@ -2267,6 +2291,7 @@ function InfiniteCanvasPage() {
                                           metadata: {
                                               ...node.metadata,
                                               ...videoMetadata(video),
+                                              videoDelivery: undefined,
                                               prompt: effectivePrompt,
                                               model: generationConfig.model,
                                               size: generationConfig.size,
@@ -2393,7 +2418,7 @@ function InfiniteCanvasPage() {
                 setRunningNodeId(null);
             }
         },
-        [effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, startGenerationRequest, t],
+        [effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, startGenerationRequest, t, videoRequestOptions],
     );
     useEffect(() => {
         generateNodeRef.current = handleGenerateNode;
@@ -2401,6 +2426,7 @@ function InfiniteCanvasPage() {
 
     const handleRetryNode = useCallback(
         async (node: CanvasNodeData, imageId?: string) => {
+            const videoTask = node.type === CanvasNodeType.Video && !node.metadata?.content ? node.metadata?.videoTask : undefined;
             const sourceNode = findRetrySourceNode(node.id, nodesRef.current, connectionsRef.current) || node;
             const savedImageMetadata = node.type === CanvasNodeType.Image ? node.metadata : undefined;
             const hasSavedImageMetadata = Boolean(savedImageMetadata?.generationType);
@@ -2415,13 +2441,14 @@ function InfiniteCanvasPage() {
                           count: "1",
                       }
                     : { ...buildGenerationConfig(effectiveConfig, sourceNode, node.type === CanvasNodeType.Text ? "text" : node.type === CanvasNodeType.Video ? "video" : node.type === CanvasNodeType.Audio ? "audio" : "image"), count: "1" };
+            if (videoTask) generationConfig.model = videoTask.model;
             if (!isAiConfigReady(generationConfig, generationConfig.model)) {
                 openConfigDialog(true);
                 return;
             }
 
-            const context = hasSavedImageMetadata ? null : await hydrateNodeGenerationContext(buildNodeGenerationContext(sourceNode.id, nodesRef.current, connectionsRef.current, sourceNode.metadata?.prompt || node.metadata?.prompt || ""));
-            const prompt = (savedImageMetadata?.prompt || context?.prompt || "").trim();
+            const context = hasSavedImageMetadata || videoTask ? null : await hydrateNodeGenerationContext(buildNodeGenerationContext(sourceNode.id, nodesRef.current, connectionsRef.current, sourceNode.metadata?.prompt || node.metadata?.prompt || ""));
+            const prompt = (savedImageMetadata?.prompt || context?.prompt || (videoTask ? node.metadata?.prompt || t("videoDelivery.reclaim") : "")).trim();
             if (!prompt) {
                 message.warning(t("canvas.projectPage.retryPromptMissing"));
                 return;
@@ -2463,7 +2490,7 @@ function InfiniteCanvasPage() {
                             generationConfig,
                             prompt,
                             { images: retryImages, videos: context?.referenceVideos || [], audios: context?.referenceAudios || [] },
-                            { signal: controller.signal },
+                            videoRequestOptions(node.id, controller.signal, videoTask),
                         ),
                     );
                     const videoSize = fitNodeSize(video.width || node.width, video.height || node.height, VIDEO_NODE_MAX_WIDTH, VIDEO_NODE_MAX_HEIGHT);
@@ -2478,6 +2505,7 @@ function InfiniteCanvasPage() {
                                       metadata: {
                                           ...item.metadata,
                                           ...videoMetadata(video),
+                                          videoDelivery: undefined,
                                           prompt,
                                           model: generationConfig.model,
                                           size: generationConfig.size,
@@ -2555,8 +2583,15 @@ function InfiniteCanvasPage() {
                 setRunningNodeId(null);
             }
         },
-        [effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, startGenerationRequest, t],
+        [effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, startGenerationRequest, t, videoRequestOptions],
     );
+
+    useEffect(() => {
+        if (!projectLoaded || !restoredVideoIdsRef.current.length) return;
+        const ids = restoredVideoIdsRef.current;
+        restoredVideoIdsRef.current = [];
+        for (const node of nodesRef.current) if (ids.includes(node.id)) void handleRetryNode(node);
+    }, [projectLoaded, handleRetryNode]);
 
     const deleteBatchImage = useCallback((nodeId: string, imageId: string) => {
         const node = nodesRef.current.find((item) => item.id === nodeId);
