@@ -27,6 +27,7 @@ export type CanvasImageGenerationType = "generation" | "edit";
 
 export type CanvasNodeImage = {
     id: string;
+    sourceUrl?: string;
     status: CanvasNodeStatus;
     errorDetails?: string;
     content: string;

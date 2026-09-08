@@ -17,6 +17,8 @@
 
 ## 公网 API 合同
 
+PandaTK 结果领取使用 `GET /v1/images/content/pandatk/:uuid`，由 Caddy 转发到固定的 `https://download.xmimage2.cc.cd/r2/images/:uuid`，只接受标准 UUID 与空查询参数。该路径不读取或修改账务，凭公开随机结果 ID 读取同一上游资源；转发时移除 Authorization、Cookie、Origin、Referer，响应移除 Set-Cookie。不接收调用方指定的主机或 URL。此独立外部上游不计入本地 Relay 蓝绿端口数量。Wanmo 将模板中 `BEGIN/END FIXED IMAGE RESULT PROXY` 块加入 Canvas 的普通 API 匹配之前。
+
 Caddy 只用一个 `reverse_proxy` handler，并同时匹配 HTTP 方法与路径：
 
 | 方法 | 路径 |

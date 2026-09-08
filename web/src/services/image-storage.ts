@@ -3,6 +3,8 @@ import localforage from "localforage";
 import { nanoid } from "nanoid";
 import i18n from "@/i18n";
 import { readImageMeta } from "@/lib/image-utils";
+import { imageDownloadUrl } from "@/lib/image-delivery";
+import { withMediaStorageTimeout } from "./file-storage";
 
 export type UploadedImage = {
     url: string;
@@ -19,9 +21,19 @@ const videoLogStore = localforage.createInstance({ name: "infinite-canvas", stor
 const objectUrls = new Map<string, string>();
 
 export async function uploadImage(input: string | Blob): Promise<UploadedImage> {
-    const blob = typeof input === "string" ? await (await fetch(input)).blob() : input;
+    let blob: Blob;
+    if (typeof input === "string") {
+        try {
+            const response = await fetch(imageDownloadUrl(input), { signal: AbortSignal.timeout(60_000) });
+            if (!response.ok) throw new Error(i18n.t("imageDelivery.httpError", { status: response.status }));
+            blob = await response.blob();
+            if (!blob.size || /(?:json|text\/html)/i.test(blob.type)) throw new Error(i18n.t("imageDelivery.invalidImage"));
+        } catch (error) {
+            throw new Error(i18n.t("imageDelivery.downloadFailed", { reason: error instanceof Error ? error.message : String(error) }));
+        }
+    } else blob = input;
     const storageKey = `image:${nanoid()}`;
-    await store.setItem(storageKey, blob);
+    await withMediaStorageTimeout(store.setItem(storageKey, blob), i18n.t("imageDelivery.storageTimeout"));
     const url = URL.createObjectURL(blob);
     objectUrls.set(storageKey, url);
     const meta = await readImageMeta(url);
@@ -57,7 +69,9 @@ export async function imageToDataUrl(image: { url?: string; dataUrl?: string; st
     }
     const url = image.dataUrl || (await resolveImageUrl(image.storageKey, image.url || ""));
     if (!url || url.startsWith("data:")) return url;
-    return blobToDataUrl(await (await fetch(url)).blob());
+    const response = await fetch(imageDownloadUrl(url), { signal: AbortSignal.timeout(60_000) });
+    if (!response.ok) throw new Error(i18n.t("imageDelivery.httpError", { status: response.status }));
+    return blobToDataUrl(await response.blob());
 }
 
 export async function deleteStoredImages(keys: Iterable<string>) {

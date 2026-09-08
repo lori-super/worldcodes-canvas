@@ -1,4 +1,8 @@
 export default {
+    imageDelivery: {
+        downloadFailed: "Image retrieval failed: {{reason}}", httpError: "Image download returned HTTP {{status}}", invalidImage: "The response is not a valid image",
+        storageTimeout: "Saving the image timed out. Retry retrieval.", reclaim: "Retrieve generated image",
+    },
     videoDelivery: {
         downloading: "Video generated, downloading", saving: "Video downloaded, saving", reclaim: "Retrieve video again",
         timeout: "Retrieval timed out. The task is saved; retrieve it again without generating a new video.", storageTimeout: "Saving the video timed out. Retrieve it again.",
