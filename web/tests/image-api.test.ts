@@ -71,7 +71,7 @@ test("the formal WorldCodes origin keeps the Nano Banana Relay route", async () 
     expect(options.headers["x-goog-api-key"]).toBe("formal-key");
 });
 
-test("external Gemini keeps the native responseFormat image config", async () => {
+test("external Gemini uses the supported imageConfig payload", async () => {
     const { requestGeneration } = await import("../src/services/api/image");
     const { defaultConfig } = await import("../src/stores/use-config-store");
     const model = "gemini::gemini-3-pro-image-preview";
@@ -96,6 +96,28 @@ test("external Gemini keeps the native responseFormat image config", async () =>
     const [, body] = post.mock.calls[0];
     expect(body.generationConfig).toEqual({
         responseModalities: ["TEXT", "IMAGE"],
-        responseFormat: { image: { aspectRatio: "16:9", imageSize: "4K" } },
+        imageConfig: { aspectRatio: "16:9", imageSize: "4K" },
     });
+});
+
+test("GPT Image generation omits response_format and preserves returned URLs", async () => {
+    const { requestGeneration } = await import("../src/services/api/image");
+    const { defaultConfig } = await import("../src/stores/use-config-store");
+    post.mockResolvedValueOnce({ data: { data: [{ url: "https://download.xmimage2.cc.cd/r2/images/9c8e0957-5084-4dfd-996b-189c7ba1f632" }] } } as never);
+    const result = await requestGeneration({ ...defaultConfig, model: "worldcodes::gpt-image-2" }, "test");
+    expect(post.mock.calls[0][0]).toBe("/v1/images/generations");
+    expect(post.mock.calls[0][1]).not.toHaveProperty("response_format");
+    expect(result[0].dataUrl).toContain("/r2/images/");
+});
+
+test("multi-reference GPT Image edits send image[] and omit response_format", async () => {
+    const { requestEdit } = await import("../src/services/api/image");
+    const { defaultConfig } = await import("../src/stores/use-config-store");
+    post.mockResolvedValueOnce({ data: { data: [{ b64_json: "AA==" }] } } as never);
+    const ref = { id: "ref", name: "ref.png", type: "image/png", dataUrl: "data:image/png;base64,AA==" };
+    await requestEdit({ ...defaultConfig, model: "worldcodes::gpt-image-2" }, "test", [ref, { ...ref, id: "ref2" }]);
+    const form = post.mock.calls[0][1] as unknown as FormData;
+    expect(form.getAll("image[]")).toHaveLength(2);
+    expect(form.has("image")).toBe(false);
+    expect(form.has("response_format")).toBe(false);
 });

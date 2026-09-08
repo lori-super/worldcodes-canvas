@@ -8,7 +8,7 @@ import { canvasThemes } from "@/lib/canvas-theme";
 
 const AGENT_MARKETPLACE_COMMAND = "codex plugin marketplace add lori-super/worldcodes-canvas";
 const AGENT_PLUGIN_INSTALL_COMMAND = "codex plugin add worldcodes-canvas@worldcodes-canvas";
-const AGENT_DIRECT_COMMAND = "npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.0.tgz";
+const AGENT_DIRECT_COMMAND = "npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.1.tgz";
 const AGENT_PLUGIN_REMOVE_COMMAND = "codex plugin remove worldcodes-canvas@worldcodes-canvas";
 const AGENT_MCP_REMOVE_COMMAND = "codex mcp remove infinite-canvas";
 

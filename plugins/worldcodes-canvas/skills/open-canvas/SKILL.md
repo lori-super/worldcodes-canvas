@@ -12,7 +12,7 @@ description: 打开 WorldCodes Canvas 在线或本地画布，并自动连接 Wo
 1. 在用户电脑启动 WorldCodes Canvas Agent 并保持运行：
 
 ```bash
-npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.0.tgz
+npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.1.tgz
 ```
 
 2. 从启动输出取得 `Local URL` 和 `Connect token`。
@@ -20,7 +20,7 @@ npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.0.
 3. 在 Codex 浏览器打开：
 
 ```text
-https://canvas.worldcodes.online/canvas?mode=new&agentUrl=<Local URL>&agentToken=<Connect token>
+https://canvas.worldcodes.online/canvas?mode=new#agentUrl=<Local URL>&agentToken=<Connect token>
 ```
 
 ## 本地版
@@ -36,13 +36,13 @@ bun run dev
 2. 启动 WorldCodes Canvas Agent：
 
 ```bash
-npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.0.tgz
+npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.1.tgz
 ```
 
 3. 从启动输出取得 `Local URL` 和 `Connect token`，打开：
 
 ```text
-<Vite Local 地址>/canvas?mode=new&agentUrl=<Local URL>&agentToken=<Connect token>
+<Vite Local 地址>/canvas?mode=new#agentUrl=<Local URL>&agentToken=<Connect token>
 ```
 
 ## MCP 与连接地址

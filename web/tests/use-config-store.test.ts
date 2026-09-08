@@ -22,7 +22,6 @@ test("fresh hydration keeps only real WorldCodes presets", async () => {
         { name: "grok-imagine-image-quality", displayName: "Grok Imagine", capability: "image" },
         { name: "gpt-image-2", displayName: "GPT Image 2", capability: "image" },
         { name: "nano-banana-2", displayName: "Nano Banana 2", capability: "image" },
-        { name: "MiniMax-H3", displayName: "MiniMax H3", capability: "video" },
         { name: "gpt-5.5", capability: "text" },
     ]);
     expect(useConfigStore.getState().config.audioModel).toBe("");

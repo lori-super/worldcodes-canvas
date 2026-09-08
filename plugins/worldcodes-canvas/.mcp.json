@@ -2,7 +2,7 @@
   "mcpServers": {
     "infinite-canvas": {
       "command": "npx",
-      "args": ["-y", "https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.0.tgz", "mcp"],
+      "args": ["-y", "https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.1.tgz", "mcp"],
       "startup_timeout_sec": 20,
       "tool_timeout_sec": 90
     }
