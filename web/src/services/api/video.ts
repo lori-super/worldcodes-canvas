@@ -180,7 +180,8 @@ async function createCompatibleVideoTask(config: AiConfig, model: string, prompt
             const url = entry.upload_id ? prepared.urls[entry.upload_id] : "image_url" in entry ? entry.image_url.url : "video_url" in entry ? entry.video_url.url : entry.audio_url.url;
             return url ? [url] : [];
         });
-        const body = { model: name, prompt, seconds: normalized.videoSeconds, resolution: normalized.vquality, aspect_ratio: normalized.size,
+        const body = { model: name, prompt, seconds: normalized.videoSeconds, resolution: normalized.vquality,
+            ...(!(grok && images.length === 1) ? { aspect_ratio: normalized.size } : {}),
             images: urls("image_url"), videos: urls("video_url"), audios: urls("audio_url"),
             ...(grok ? { video_mode: images.length === 1 ? "first_frame" : images.length === 7 ? "reference" : "text" } : {}),
         };

@@ -558,7 +558,7 @@ export default function VideoPage() {
                                                     />
                                                 </div>
                                             ))}
-                                            {!references.length ? <div className="flex min-w-full items-center justify-center text-xs text-stone-500">{referenceDragTarget ? t("videoWorkbench.dropReferences") : t("videoWorkbench.noImages")}</div> : null}
+                                            {!references.length ? <div className="flex min-w-full items-center justify-center text-xs text-stone-500">{referenceDragTarget ? t("videoWorkbench.dropReferences") : modelOptionName(model).startsWith("grok-imagine-video") ? t("videoWorkbench.grokImages") : t("videoWorkbench.noImages", { count: imageLimit })}</div> : null}
                                         </div>
                                     </div>
 
@@ -578,7 +578,7 @@ export default function VideoPage() {
                                                     </button>
                                                 </div>
                                             ))}
-                                            {!referenceVideos.length ? <div className="flex min-w-full items-center justify-center text-xs text-stone-500">{t("videoWorkbench.noVideos")}</div> : null}
+                                            {!referenceVideos.length ? <div className="flex min-w-full items-center justify-center text-xs text-stone-500">{videoLimit ? t("videoWorkbench.noVideos", { count: videoLimit }) : t("videoWorkbench.noVideoSupport")}</div> : null}
                                         </div>
                                     </div>
 
@@ -601,7 +601,7 @@ export default function VideoPage() {
                                                     <ReferenceOrderButtons index={index} total={referenceAudios.length} onMove={(offset) => setReferenceAudios((value) => moveListItem(value, index, offset))} />
                                                 </div>
                                             ))}
-                                            {!referenceAudios.length ? <div className="flex min-w-full items-center justify-center text-xs text-stone-500">{t("videoWorkbench.noAudio")}</div> : null}
+                                            {!referenceAudios.length ? <div className="flex min-w-full items-center justify-center text-xs text-stone-500">{audioLimit ? t("videoWorkbench.noAudio", { count: audioLimit }) : t("videoWorkbench.noAudioSupport")}</div> : null}
                                         </div>
                                     </div>
                                     {!miniMaxH3 && !profile && (referenceVideos.length || referenceAudios.length || references.some((item) => item.role && item.role !== "reference_image")) ? <div className="text-xs text-amber-600 dark:text-amber-400">{t("videoWorkbench.h3ReferencesOnly")}</div> : null}
