@@ -1,4 +1,10 @@
 export default {
+    videoDelivery: {
+        downloading: "Video generated, downloading", saving: "Video downloaded, saving", reclaim: "Retrieve video again",
+        timeout: "Retrieval timed out. The task is saved; retrieve it again without generating a new video.", storageTimeout: "Saving the video timed out. Retrieve it again.",
+        taskSaveFailed: "The task was created but could not be saved locally. Keep task ID {{id}} and use Retrieve existing video.",
+        recover: "Retrieve existing video", taskId: "Video task ID", invalidTask: "Enter a valid video task ID", recoverHint: "Use the original video channel and API key. This retrieves the existing task without creating or charging for a new generation.", recoverTitle: "Retrieve original video",
+    },
     meta: {
         title: "WorldCodes Canvas",
         description: "A multimodal infinite canvas by WorldCodes",

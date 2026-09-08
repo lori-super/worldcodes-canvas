@@ -5,6 +5,8 @@ description: Implemented changes that still need manual verification
 
 # Pending Tests
 
+- 视频领取恢复：在真实画布视频节点检查下载进度、120 秒下载超时、30 秒查询超时、15 秒存储超时和 5 秒元数据兜底；下载失败点击“重新领取视频”与刷新页面只能查询原任务，不能新增生成请求。旧任务可在视频创作台“领取已有视频”输入任务 ID；领取仍由原视频渠道 Key 鉴权。
+
 - ZZ One 视频专用渠道：配置 WorldCodes 视频分组 Key 后，验证 Grok / Grok 1.5 Preview 480p、Seedance 2.5 480p、Kling Omni / Turbo 720p 的模型切换、参数、文生视频、参考图临时上传、结果播放下载和历史恢复。长任务等待上限 30 分钟，最多只展示已核实的清晰度；未成功的上游模型不预置。生产构建与 TypeScript 已验证；npm lock 补齐原先缺失的 i18next 等依赖，安装需 `--legacy-peer-deps`。
 
 The current release needs manual verification in these areas:

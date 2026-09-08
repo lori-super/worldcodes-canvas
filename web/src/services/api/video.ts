@@ -15,7 +15,11 @@ import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
 type VideoResponse = { id?: string; task_id?: string; status?: string; error?: { message?: string }; url?: string; result_url?: string; video_url?: string; content?: { video_url?: string; url?: string } | null };
 type ApiVideoResponse = VideoResponse | { code?: number | string; data?: VideoResponse | null; msg?: string; message?: string; error?: { message?: string } };
 type ApiEnvelope<T> = T | { code?: number | string; data?: T | null; msg?: string; message?: string; error?: { message?: string } };
-type RequestOptions = { signal?: AbortSignal };
+export type VideoDeliveryProgress = { phase: "generating" | "downloading" | "saving"; loaded?: number; total?: number };
+type RequestOptions = { signal?: AbortSignal; onProgress?: (progress: VideoDeliveryProgress) => void };
+type VideoRequestOptions = RequestOptions & { task?: VideoGenerationTask; onTaskCreated?: (task: VideoGenerationTask) => Promise<void> };
+export const VIDEO_QUERY_TIMEOUT_MS = 30_000;
+export const VIDEO_DOWNLOAD_TIMEOUT_MS = 120_000;
 const apiText = (key: string, options?: Record<string, unknown>) => i18n.t(`apiErrors.${key}`, options);
 
 export type VideoGenerationResult = { blob?: Blob; url?: string; mimeType?: string };
@@ -37,8 +41,9 @@ function aiHeaders(config: AiConfig, contentType?: string) {
     };
 }
 
-export async function requestVideoGeneration(config: AiConfig, prompt: string, references: VideoGenerationReferences = {}, options?: RequestOptions): Promise<VideoGenerationResult> {
-    const task = await createVideoGenerationTask(config, prompt, references, options);
+export async function requestVideoGeneration(config: AiConfig, prompt: string, references: VideoGenerationReferences = {}, options?: VideoRequestOptions): Promise<VideoGenerationResult> {
+    const task = options?.task || await createVideoGenerationTask(config, prompt, references, options);
+    if (!options?.task) await options?.onTaskCreated?.(task);
     for (let attempt = 0; attempt < 360; attempt += 1) {
         if (options?.signal?.aborted) throw new DOMException("Aborted", "AbortError");
         const state = await pollVideoGenerationTask(config, task, options);
@@ -318,36 +323,46 @@ async function createOpenAIVideoTask(config: AiConfig, model: string, prompt: st
 
 async function pollOpenAIVideoTask(config: AiConfig, task: VideoGenerationTask, options?: RequestOptions): Promise<VideoGenerationTaskState> {
     try {
-        const video = unwrapVideoResponse((await axios.get<ApiVideoResponse>(aiApiUrl(config, `/videos/${task.id}`), { headers: aiHeaders(config), signal: options?.signal })).data);
+        const video = unwrapVideoResponse((await axios.get<ApiVideoResponse>(aiApiUrl(config, `/videos/${task.id}`), { headers: aiHeaders(config), signal: options?.signal, timeout: VIDEO_QUERY_TIMEOUT_MS })).data);
         const url = videoResultUrl(video);
         if (url) {
             const result = await videoResultFromUrl(url, options);
             await cleanupTaskUploads(config, task);
+            options?.onProgress?.({ phase: "saving" });
             return { status: "completed", result };
         }
         if (video.status === "completed" || video.status === "succeeded") {
-            const content = await axios.get<Blob>(aiApiUrl(config, `/videos/${task.id}/content`), { headers: aiHeaders(config), responseType: "blob", signal: options?.signal });
+            options?.onProgress?.({ phase: "downloading" });
+            const content = await axios.get<Blob>(aiApiUrl(config, `/videos/${task.id}/content`), {
+                headers: aiHeaders(config), responseType: "blob", signal: options?.signal, timeout: VIDEO_DOWNLOAD_TIMEOUT_MS,
+                onDownloadProgress: ({ loaded, total }) => options?.onProgress?.({ phase: "downloading", loaded, total }),
+            });
             await assertVideoBlob(content.data);
             await cleanupTaskUploads(config, task);
+            options?.onProgress?.({ phase: "saving" });
             return { status: "completed", result: { blob: content.data } };
         }
         if (video.status === "failed" || video.status === "cancelled") {
             await cleanupTaskUploads(config, task);
             return { status: "failed", error: readApiErrorMessage(video.error?.message) || apiText("videoGenerationFailed") };
         }
+        options?.onProgress?.({ phase: "generating" });
         return { status: "pending" };
     } catch (error) {
+        if (axios.isAxiosError(error) && ["ECONNABORTED", "ETIMEDOUT"].includes(error.code || "")) throw new Error(i18n.t("videoDelivery.timeout"));
         throw new Error(readAxiosError(error, apiText("videoTaskQueryFailed")));
     }
 }
 
 async function cleanupTaskUploads(config: AiConfig, task: VideoGenerationTask) {
-    if (task.temporaryUploadIds?.length) await deleteTemporaryMedia(config, task.temporaryUploadIds);
+    // Temporary uploads also expire server-side; cleanup must not block delivery.
+    if (task.temporaryUploadIds?.length) void deleteTemporaryMedia(config, task.temporaryUploadIds).catch(() => {});
 }
 
 async function videoResultFromUrl(url: string, options?: RequestOptions): Promise<VideoGenerationResult> {
     try {
-        const response = await axios.get<Blob>(url, { responseType: "blob", signal: options?.signal });
+        options?.onProgress?.({ phase: "downloading" });
+        const response = await axios.get<Blob>(url, { responseType: "blob", signal: options?.signal, timeout: VIDEO_DOWNLOAD_TIMEOUT_MS });
         await assertVideoBlob(response.data);
         return { blob: response.data };
     } catch (error) {

@@ -12,9 +12,9 @@ import { PromptSelectDialog } from "@/components/prompts/prompt-select-dialog";
 import { VideoSettingsPanel, normalizeVideoResolutionValue, normalizeVideoSizeValue, videoSizeLabel } from "@/components/video-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { formatBytes, formatDuration } from "@/lib/image-utils";
-import { deleteStoredMedia, getMediaBlob, resolveMediaUrl, uploadMediaFile } from "@/services/file-storage";
+import { deleteStoredMedia, getMediaBlob, resolveMediaUrl, uploadMediaFile, withMediaStorageTimeout } from "@/services/file-storage";
 import { resolveImageUrl, uploadImage } from "@/services/image-storage";
-import { createVideoGenerationTask, pollVideoGenerationTask, storeGeneratedVideo, type VideoGenerationTask } from "@/services/api/video";
+import { createVideoGenerationTask, pollVideoGenerationTask, storeGeneratedVideo, type VideoGenerationTask, type VideoDeliveryProgress } from "@/services/api/video";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
 import { boolConfig, modelOptionLabel, modelOptionName, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
@@ -36,6 +36,7 @@ type GeneratedVideo = {
 };
 
 type GenerationResult = {
+    delivery?: VideoDeliveryProgress;
     id: string;
     status: "pending" | "success" | "failed";
     video?: GeneratedVideo;
@@ -106,6 +107,8 @@ export default function VideoPage() {
     const [elapsedMs, setElapsedMs] = useState(0);
     const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
     const [previewLog, setPreviewLog] = useState<GenerationLog | null>(null);
+    const [recoverTaskId, setRecoverTaskId] = useState(() => new URLSearchParams(window.location.search).get("recoverTask") || "");
+    const [recoverOpen, setRecoverOpen] = useState(() => Boolean(new URLSearchParams(window.location.search).get("recoverTask")));
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [referenceDragTarget, setReferenceDragTarget] = useState(false);
     const [autoRunToken, setAutoRunToken] = useState(0);
@@ -260,16 +263,20 @@ export default function VideoPage() {
         setResults([{ id: nanoid(), status: "pending" }]);
         const batchStartedAt = performance.now();
         setStartedAt(batchStartedAt);
+        let createdTask: VideoGenerationTask | undefined;
         try {
             const task = await createVideoGenerationTask(snapshot.config, snapshot.text, { images: snapshot.references, videos: snapshot.referenceVideos, audios: snapshot.referenceAudios });
+            createdTask = task;
             const log = buildLog({ prompt: snapshot.text, model, config: snapshot.config, references: snapshot.references, referenceVideos: snapshot.referenceVideos, referenceAudios: snapshot.referenceAudios, durationMs: 0, status: "pending", task });
             await saveLog(log, false);
             void pollGenerationLog(log, snapshot.config, agentTaskId);
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : t("workbench.generationFailed");
-            setResults([{ id: nanoid(), status: "failed", error: errorMessage }]);
+            const errorMessage = createdTask ? t("videoDelivery.taskSaveFailed", { id: createdTask.id }) : error instanceof Error ? error.message : t("workbench.generationFailed");
+            const failedLog = buildLog({ prompt: snapshot.text, model, config: snapshot.config, references: snapshot.references, referenceVideos: snapshot.referenceVideos, referenceAudios: snapshot.referenceAudios, durationMs: performance.now() - batchStartedAt, status: "failed", task: createdTask, error: errorMessage });
+            setResults([{ id: failedLog.id, status: "failed", error: errorMessage }]);
+            setLogs((items) => [failedLog, ...items.filter((item) => item.task?.id !== createdTask?.id)]);
             if (agentTaskId) updateAgentTask(agentTaskId, { status: "failed", successCount: 0, failCount: 1, error: errorMessage });
-            await saveLog(buildLog({ prompt: snapshot.text, model, config: snapshot.config, references: snapshot.references, referenceVideos: snapshot.referenceVideos, referenceAudios: snapshot.referenceAudios, durationMs: performance.now() - batchStartedAt, status: "failed", error: errorMessage }));
+            try { await saveLog(failedLog, false); } catch { /* Keep the task in memory for retrieval. */ }
             message.error(errorMessage);
             setRunning(false);
         }
@@ -319,8 +326,22 @@ export default function VideoPage() {
         return { text, config: buildVideoConfig(effectiveConfig, model), references: [...references], referenceVideos: [...referenceVideos], referenceAudios: [...referenceAudios] };
     };
 
-    const retryResult = () => {
-        void generate();
+    const retryResult = (id: string) => {
+        const log = logs.find((item) => item.id === id);
+        if (log?.task) void pollGenerationLog(log);
+        else void generate();
+    };
+
+    const recoverVideo = async () => {
+        const id = recoverTaskId.trim();
+        if (!/^[a-zA-Z0-9_-]{1,160}$/.test(id)) { message.error(t("videoDelivery.invalidTask")); return; }
+        if (!isAiConfigReady(effectiveConfig, model)) { openConfigDialog(true); return; }
+        const existing = logs.find((log) => log.task?.id === id);
+        const log = existing || buildLog({ prompt: t("videoDelivery.recoverTitle"), model, config: buildVideoConfig(effectiveConfig, model), references: [], referenceVideos: [], referenceAudios: [], durationMs: 0, status: "pending", task: { id, provider: "openai", model } });
+        await saveLog({ ...log, status: "pending", error: undefined }, false);
+        setRecoverOpen(false);
+        setPreviewLog(log);
+        void pollGenerationLog(log);
     };
 
     const downloadVideo = (video: GeneratedVideo) => {
@@ -392,7 +413,7 @@ export default function VideoPage() {
     };
 
     const saveLog = async (log: GenerationLog, resumePending = true) => {
-        await logStore.setItem(log.id, serializeLog(log));
+        await withMediaStorageTimeout(logStore.setItem(log.id, serializeLog(log)));
         await refreshLogs(resumePending);
     };
 
@@ -414,11 +435,13 @@ export default function VideoPage() {
         activeLogIdsRef.current.add(log.id);
         setRunning(true);
         setStartedAt((value) => value || performance.now());
-        setResults((value) => (value.length ? value : [{ id: log.id, status: "pending" }]));
+        setResults([{ id: log.id, status: "pending" }]);
         const taskConfig = buildVideoConfig({ ...effectiveConfig, ...log.config }, log.task.model || log.model);
         try {
             for (let attempt = 0; attempt < 360; attempt += 1) {
-                const state = await pollVideoGenerationTask(configOverride || taskConfig, log.task);
+                const state = await pollVideoGenerationTask(configOverride || taskConfig, log.task, {
+                    onProgress: (delivery) => setResults([{ id: log.id, status: "pending", delivery }]),
+                });
                 if (state.status === "completed") {
                     const stored = await storeGeneratedVideo(state.result);
                     const nextVideo: GeneratedVideo = {
@@ -482,7 +505,10 @@ export default function VideoPage() {
                 <section className="grid gap-3 lg:min-h-0 lg:overflow-hidden xl:grid-cols-[420px_minmax(0,1fr)]">
                     <div className="thin-scrollbar flex flex-col rounded-lg border border-stone-200 bg-card p-4 shadow-sm dark:border-stone-800 lg:min-h-0 lg:overflow-y-auto">
                         <div className="flex items-start justify-between gap-3">
-                            <h1 className="text-2xl font-semibold text-stone-950 dark:text-stone-100">{t("videoWorkbench.title")}</h1>
+                            <div>
+                                <h1 className="text-2xl font-semibold text-stone-950 dark:text-stone-100">{t("videoWorkbench.title")}</h1>
+                                <Button type="link" className="!px-0" onClick={() => setRecoverOpen(true)}>{t("videoDelivery.recover")}</Button>
+                            </div>
                             <div className="flex shrink-0 gap-2 lg:hidden">
                                 <Button icon={<History className="size-4" />} onClick={() => setLogsOpen(true)}>
                                     {t("workbench.logs")}
@@ -636,7 +662,7 @@ export default function VideoPage() {
                         </div>
                         {results.length ? (
                             <div className="grid gap-4">
-                                {results.map((result) => (result.status === "success" && result.video ? <ResultVideoCard key={result.id} video={result.video} onDownload={downloadVideo} onSaveAsset={saveResultToAssets} /> : result.status === "failed" ? <FailedVideoCard key={result.id} error={result.error || t("workbench.generationFailed")} onRetry={retryResult} /> : <PendingVideoCard key={result.id} />))}
+                                {results.map((result) => (result.status === "success" && result.video ? <ResultVideoCard key={result.id} video={result.video} onDownload={downloadVideo} onSaveAsset={saveResultToAssets} /> : result.status === "failed" ? <FailedVideoCard key={result.id} error={result.error || t("workbench.generationFailed")} reclaim={Boolean(logs.find((log) => log.id === result.id)?.task)} onRetry={() => retryResult(result.id)} /> : <PendingVideoCard key={result.id} delivery={result.delivery} />))}
                             </div>
                         ) : (
                             <div className="flex min-h-[320px] flex-col items-center justify-center rounded-lg border border-dashed border-stone-300 text-center dark:border-stone-700 lg:min-h-[560px]">
@@ -670,6 +696,10 @@ export default function VideoPage() {
             <AssetPickerModal open={assetPickerOpen} defaultTab="my-assets" onInsert={(payload) => void insertPickedAsset(payload)} onClose={() => setAssetPickerOpen(false)} />
             <Modal title={t("workbench.deleteLogs")} open={deleteConfirmOpen} onCancel={() => setDeleteConfirmOpen(false)} onOk={deleteSelectedLogs} okText={t("common.delete")} okButtonProps={{ danger: true }} cancelText={t("common.cancel")}>
                 {t("workbench.deleteLogsConfirm", { count: selectedLogIds.length })}
+            </Modal>
+            <Modal title={t("videoDelivery.recover")} open={recoverOpen} onCancel={() => setRecoverOpen(false)} onOk={recoverVideo} okText={t("videoDelivery.recoverTitle")} cancelText={t("common.cancel")}>
+                <p className="mb-3">{t("videoDelivery.recoverHint")}</p>
+                <Input aria-label={t("videoDelivery.taskId")} placeholder={t("videoDelivery.taskId")} value={recoverTaskId} onChange={(event) => setRecoverTaskId(event.target.value)} />
             </Modal>
         </div>
     );
@@ -718,19 +748,20 @@ function ResultVideoCard({ video, onDownload, onSaveAsset }: { video: GeneratedV
     );
 }
 
-function PendingVideoCard() {
+function PendingVideoCard({ delivery }: { delivery?: VideoDeliveryProgress }) {
     const { t } = useTranslation();
     return (
         <div className="relative aspect-video overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50 dark:border-stone-700 dark:bg-stone-900">
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-sm text-stone-500 dark:text-stone-400">
                 <LoaderCircle className="size-6 animate-spin" />
-                <span>{t("workbench.generating")}</span>
+                <span>{delivery && delivery.phase !== "generating" ? t(`videoDelivery.${delivery.phase}`) : t("workbench.generating")}</span>
+                {delivery?.total ? <span>{Math.round((delivery.loaded || 0) / delivery.total * 100)}%</span> : null}
             </div>
         </div>
     );
 }
 
-function FailedVideoCard({ error, onRetry }: { error: string; onRetry: () => void }) {
+function FailedVideoCard({ error, onRetry, reclaim }: { error: string; onRetry: () => void; reclaim?: boolean }) {
     const { t } = useTranslation();
     return (
         <div className="overflow-hidden rounded-lg border border-red-200 bg-red-50 dark:border-red-950 dark:bg-red-950/20">
@@ -742,7 +773,7 @@ function FailedVideoCard({ error, onRetry }: { error: string; onRetry: () => voi
             </div>
             <div className="flex justify-end border-t border-red-200 p-3 dark:border-red-950">
                 <Button size="small" danger onClick={onRetry}>
-                    {t("workbench.retry")}
+                    {t(reclaim ? "videoDelivery.reclaim" : "workbench.retry")}
                 </Button>
             </div>
         </div>

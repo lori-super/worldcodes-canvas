@@ -38,6 +38,8 @@ export type CanvasNodeImage = {
 };
 
 export type CanvasNodeMetadata = {
+    videoTask?: import("@/services/api/video").VideoGenerationTask;
+    videoDelivery?: import("@/services/api/video").VideoDeliveryProgress;
     content?: string;
     composerContent?: string;
     prompt?: string;

@@ -1,4 +1,10 @@
 export default {
+    videoDelivery: {
+        downloading: "视频已生成，正在下载", saving: "视频已下载，正在保存", reclaim: "重新领取视频",
+        timeout: "领取视频超时，任务已保留。请重新领取，不会重新生成。", storageTimeout: "视频保存超时，请重新领取。",
+        taskSaveFailed: "任务已创建，但本地保存失败。请保留任务 ID {{id}}，使用“领取已有视频”恢复。",
+        recover: "领取已有视频", taskId: "视频任务 ID", invalidTask: "请输入有效的视频任务 ID", recoverHint: "使用生成时的视频渠道和 API Key，只领取原任务，不会重新生成或重复扣费。", recoverTitle: "领取原视频",
+    },
     meta: {
         title: "WorldCodes Canvas",
         description: "WorldCodes 多模态无限画布创作工具",

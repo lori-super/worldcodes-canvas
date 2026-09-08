@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v0.16.1 - 2026-09-08
+
++ [修复] 视频下载和保存增加超时与阶段提示，画布保存任务 ID、刷新后恢复原任务，并提供失败重领和旧任务领取入口。
+
 + [新增] 视频专用渠道上线已验证的 Grok、Seedance 和 Kling 档位，按模型限制参数与参考素材，并支持较长任务等待及鉴权播放下载。
 
 + [新增] 默认接入同源 WorldCodes Relay，预置 Grok Imagine、GPT Image 2、Nano Banana 2 和 MiniMax H3，并支持画布参考图、音频、视频临时直传生成。
