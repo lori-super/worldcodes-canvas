@@ -5,6 +5,8 @@ description: Implemented changes that still need manual verification
 
 # Pending Tests
 
+- ZZ One 视频专用渠道：配置 WorldCodes 视频分组 Key 后，验证 Grok / Grok 1.5 Preview 480p、Seedance 2.5 480p、Kling Omni / Turbo 720p 的模型切换、参数、文生视频、参考图临时上传、结果播放下载和历史恢复。长任务等待上限 30 分钟，最多只展示已核实的清晰度；未成功的上游模型不预置。生产构建与 TypeScript 已验证；npm lock 补齐原先缺失的 i18next 等依赖，安装需 `--legacy-peer-deps`。
+
 The current release needs manual verification in these areas:
 
 - WorldCodes-owned Agent plugin: install `worldcodes-canvas` from the repository marketplace and verify that it downloads only the Agent package hosted on the WorldCodes site and opens `canvas.worldcodes.online`; the compatibility MCP ID `infinite-canvas` and existing `~/.infinite-canvas` data must keep working without contacting the upstream Agent package or website.

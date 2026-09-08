@@ -22,6 +22,7 @@ import { useThemeStore } from "@/stores/use-theme-store";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
 import i18n from "@/i18n";
+import { videoProfile, normalizeProfileVideo } from "@/lib/video-profiles";
 
 type GeneratedVideo = {
     id: string;
@@ -115,6 +116,10 @@ export default function VideoPage() {
     const agentTaskIdRef = useRef<string | undefined>(undefined);
 
     const model = effectiveConfig.videoModel || effectiveConfig.model;
+    const profile = videoProfile(model);
+    const imageLimit = profile?.images ?? (isMiniMaxH3Model(model) ? MAX_H3_IMAGES : MAX_STANDARD_IMAGES);
+    const videoLimit = profile?.videos ?? MAX_REFERENCE_VIDEOS;
+    const audioLimit = profile?.audios ?? MAX_REFERENCE_AUDIOS;
     const miniMaxH3 = isMiniMaxH3Model(model);
     const referenceRoles: { value: NonNullable<ReferenceImage["role"]>; label: string }[] = [
         { value: "reference_image", label: t("videoWorkbench.roleReference") },
@@ -139,13 +144,12 @@ export default function VideoPage() {
         const unsupported = classified.filter((item) => !item.kind);
         if (unsupported.length) message.warning(t("videoWorkbench.unsupportedFiles"));
 
-        const imageLimit = miniMaxH3 ? MAX_H3_IMAGES : MAX_STANDARD_IMAGES;
         const allImageFiles = classified.filter((item) => item.kind === "image").map((item) => item.file);
         const allVideoFiles = classified.filter((item) => item.kind === "video").map((item) => item.file);
         const allAudioFiles = classified.filter((item) => item.kind === "audio").map((item) => item.file);
         const imageFiles = allImageFiles.filter((file) => file.size <= MAX_IMAGE_BYTES).slice(0, Math.max(0, imageLimit - references.length));
-        const videoFiles = allVideoFiles.filter((file) => file.size <= MAX_VIDEO_BYTES).slice(0, Math.max(0, MAX_REFERENCE_VIDEOS - referenceVideos.length));
-        const audioFiles = allAudioFiles.filter((file) => file.size <= MAX_AUDIO_BYTES).slice(0, Math.max(0, MAX_REFERENCE_AUDIOS - referenceAudios.length));
+        const videoFiles = allVideoFiles.filter((file) => file.size <= MAX_VIDEO_BYTES).slice(0, Math.max(0, videoLimit - referenceVideos.length));
+        const audioFiles = allAudioFiles.filter((file) => file.size <= MAX_AUDIO_BYTES).slice(0, Math.max(0, audioLimit - referenceAudios.length));
         if (allImageFiles.some((file) => file.size > MAX_IMAGE_BYTES)) message.warning(t("videoWorkbench.imageTooLarge"));
         if (allVideoFiles.some((file) => file.size > MAX_VIDEO_BYTES)) message.warning(t("videoWorkbench.videoTooLarge"));
         if (allAudioFiles.some((file) => file.size > MAX_AUDIO_BYTES)) message.warning(t("videoWorkbench.audioTooLarge"));
@@ -189,8 +193,8 @@ export default function VideoPage() {
                 message.warning(t("videoWorkbench.audioDurationInvalid"));
             }
             setReferences((value) => [...value, ...nextReferences].slice(0, imageLimit));
-            setReferenceVideos((value) => [...value, ...nextVideos].slice(0, MAX_REFERENCE_VIDEOS));
-            setReferenceAudios((value) => [...value, ...nextAudios].slice(0, MAX_REFERENCE_AUDIOS));
+            setReferenceVideos((value) => [...value, ...nextVideos].slice(0, videoLimit));
+            setReferenceAudios((value) => [...value, ...nextAudios].slice(0, audioLimit));
         } catch {
             message.error(t("videoWorkbench.referenceUploadFailed"));
         }
@@ -223,8 +227,7 @@ export default function VideoPage() {
                 message.error(t("videoWorkbench.clipboardEmpty"));
                 return;
             }
-            const imageLimit = miniMaxH3 ? MAX_H3_IMAGES : MAX_STANDARD_IMAGES;
-            const nextReferences = await Promise.all(
+                const nextReferences = await Promise.all(
                 blobs.filter((blob) => blob.size <= MAX_IMAGE_BYTES).slice(0, Math.max(0, imageLimit - references.length)).map(async (blob, index) => {
                     const image = await uploadImage(blob);
                     return { id: nanoid(), name: `clipboard-${index + 1}.png`, type: image.mimeType, dataUrl: image.url, storageKey: image.storageKey, role: "reference_image" as const };
@@ -305,11 +308,11 @@ export default function VideoPage() {
             openConfigDialog(true);
             return null;
         }
-        if (!miniMaxH3 && (referenceVideos.length || referenceAudios.length || references.some((item) => item.role && item.role !== "reference_image"))) {
+        if (!miniMaxH3 && !profile && (referenceVideos.length || referenceAudios.length || references.some((item) => item.role && item.role !== "reference_image"))) {
             message.error(t("videoWorkbench.h3ReferencesOnly"));
             return null;
         }
-        if (!miniMaxH3 && references.length > MAX_STANDARD_IMAGES) {
+        if (!miniMaxH3 && !profile && references.length > MAX_STANDARD_IMAGES) {
             message.error(t("videoWorkbench.standardImageLimit"));
             return null;
         }
@@ -342,8 +345,8 @@ export default function VideoPage() {
             setPrompt(payload.content);
         } else if (payload.kind === "image") {
             const stored = await uploadImage(payload.dataUrl);
-            setReferences((value) => [...value, { id: nanoid(), name: payload.title, type: stored.mimeType, dataUrl: stored.url, storageKey: stored.storageKey, role: "reference_image" as const }].slice(0, miniMaxH3 ? MAX_H3_IMAGES : MAX_STANDARD_IMAGES));
-        } else if (referenceVideos.length < MAX_REFERENCE_VIDEOS) {
+            setReferences((value) => [...value, { id: nanoid(), name: payload.title, type: stored.mimeType, dataUrl: stored.url, storageKey: stored.storageKey, role: "reference_image" as const }].slice(0, imageLimit));
+        } else if (referenceVideos.length < videoLimit) {
             try {
                 const source = (payload.storageKey ? await getMediaBlob(payload.storageKey) : null) || payload.url;
                 const stored = await uploadMediaFile(source, "video-reference");
@@ -351,7 +354,7 @@ export default function VideoPage() {
                     await deleteStoredMedia([stored.storageKey]);
                     message.warning(t("videoWorkbench.videoTooLarge"));
                 } else {
-                    setReferenceVideos((value) => [...value, { id: nanoid(), name: videoFileName(payload.title), type: stored.mimeType, url: stored.url, storageKey: stored.storageKey, bytes: stored.bytes, width: stored.width, height: stored.height, durationMs: stored.durationMs }].slice(0, MAX_REFERENCE_VIDEOS));
+                    setReferenceVideos((value) => [...value, { id: nanoid(), name: videoFileName(payload.title), type: stored.mimeType, url: stored.url, storageKey: stored.storageKey, bytes: stored.bytes, width: stored.width, height: stored.height, durationMs: stored.durationMs }].slice(0, videoLimit));
                 }
             } catch {
                 message.error(t("videoWorkbench.referenceUploadFailed"));
@@ -414,7 +417,7 @@ export default function VideoPage() {
         setResults((value) => (value.length ? value : [{ id: log.id, status: "pending" }]));
         const taskConfig = buildVideoConfig({ ...effectiveConfig, ...log.config }, log.task.model || log.model);
         try {
-            for (let attempt = 0; attempt < 120; attempt += 1) {
+            for (let attempt = 0; attempt < 360; attempt += 1) {
                 const state = await pollVideoGenerationTask(configOverride || taskConfig, log.task);
                 if (state.status === "completed") {
                     const stored = await storeGeneratedVideo(state.result);
@@ -435,8 +438,8 @@ export default function VideoPage() {
                     return;
                 }
                 if (state.status === "failed") throw new Error(state.error);
-                if (attempt === 119) throw new Error(t("videoWorkbench.timeout"));
-                await delay(2500);
+                if (attempt === 359) throw new Error(t("videoWorkbench.timeout"));
+                await delay(5000);
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : t("workbench.generationFailed");
@@ -531,7 +534,7 @@ export default function VideoPage() {
                                     <div>
                                         <div className="mb-1.5 flex items-center gap-2 text-xs font-medium text-stone-600 dark:text-stone-300">
                                             <span>{t("videoWorkbench.references")}</span>
-                                            <Tag className="m-0 text-[10px]">{references.length}/{miniMaxH3 ? MAX_H3_IMAGES : MAX_STANDARD_IMAGES}</Tag>
+                                            <Tag className="m-0 text-[10px]">{references.length}/{imageLimit}</Tag>
                                         </div>
                                         <div className="hover-scrollbar hover-scrollbar-hint flex min-h-24 gap-2 overflow-x-auto pb-1">
                                             {references.map((item, index) => (
@@ -562,7 +565,7 @@ export default function VideoPage() {
                                     <div>
                                         <div className="mb-1.5 flex items-center gap-2 text-xs font-medium text-stone-600 dark:text-stone-300">
                                             <span>{t("videoWorkbench.videoReferences")}</span>
-                                            <Tag className="m-0 text-[10px]">MiniMax H3 · {referenceVideos.length}/{MAX_REFERENCE_VIDEOS}</Tag>
+                                            <Tag className="m-0 text-[10px]">{modelOptionName(model)} · {referenceVideos.length}/{videoLimit}</Tag>
                                         </div>
                                         <div className="hover-scrollbar hover-scrollbar-hint flex min-h-20 gap-2 overflow-x-auto pb-1">
                                             {referenceVideos.map((item, index) => (
@@ -582,7 +585,7 @@ export default function VideoPage() {
                                     <div>
                                         <div className="mb-1.5 flex items-center gap-2 text-xs font-medium text-stone-600 dark:text-stone-300">
                                             <span>{t("videoWorkbench.audioReferences")}</span>
-                                            <Tag className="m-0 text-[10px]">MiniMax H3 · {referenceAudios.length}/{MAX_REFERENCE_AUDIOS}</Tag>
+                                            <Tag className="m-0 text-[10px]">{modelOptionName(model)} · {referenceAudios.length}/{audioLimit}</Tag>
                                         </div>
                                         <div className="hover-scrollbar hover-scrollbar-hint flex min-h-16 gap-2 overflow-x-auto pb-1">
                                             {referenceAudios.map((item, index) => (
@@ -601,7 +604,7 @@ export default function VideoPage() {
                                             {!referenceAudios.length ? <div className="flex min-w-full items-center justify-center text-xs text-stone-500">{t("videoWorkbench.noAudio")}</div> : null}
                                         </div>
                                     </div>
-                                    {!miniMaxH3 && (referenceVideos.length || referenceAudios.length || references.some((item) => item.role && item.role !== "reference_image")) ? <div className="text-xs text-amber-600 dark:text-amber-400">{t("videoWorkbench.h3ReferencesOnly")}</div> : null}
+                                    {!miniMaxH3 && !profile && (referenceVideos.length || referenceAudios.length || references.some((item) => item.role && item.role !== "reference_image")) ? <div className="text-xs text-amber-600 dark:text-amber-400">{t("videoWorkbench.h3ReferencesOnly")}</div> : null}
                                 </div>
                             </div>
 
@@ -948,6 +951,7 @@ function buildVideoConfig(config: AiConfig, model: string): AiConfig {
         size: miniMaxH3 ? normalizeMiniMaxH3Ratio(config.size) : normalizeVideoSize(config.size),
         videoSeconds: miniMaxH3 ? normalizeMiniMaxH3Seconds(config.videoSeconds) : normalizeVideoSeconds(config.videoSeconds),
         vquality: miniMaxH3 ? normalizeMiniMaxH3Resolution(config.vquality) : normalizeResolution(config.vquality),
+        ...(videoProfile(model) ? normalizeProfileVideo(model, config.videoSeconds, config.vquality, config.size) : {}),
         videoGenerateAudio: String(boolConfig(config.videoGenerateAudio, true)),
         videoWatermark: String(boolConfig(config.videoWatermark, false)),
     };

@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import i18n from "@/i18n";
+import { videoProfile, normalizeProfileVideo } from "@/lib/video-profiles";
 import { ImageSettingsTheme } from "@/components/image-settings-panel";
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import { modelCapabilityOf, modelOptionName, type AiConfig } from "@/stores/use-config-store";
@@ -45,13 +46,16 @@ type VideoSettingsPanelProps = {
 
 export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = true, className = "w-[320px] space-y-4 rounded-2xl px-1 py-0.5" }: VideoSettingsPanelProps) {
     const { t } = useTranslation();
+    const activeModel = modelCapabilityOf(config, config.model) === "video" ? config.model : config.videoModel;
+    const profile = videoProfile(activeModel);
+    const normalized = normalizeProfileVideo(activeModel, config.videoSeconds, config.vquality, config.size);
     const miniMaxH3 = isMiniMaxH3Config(config);
-    const currentResolutionOptions = miniMaxH3 ? miniMaxH3ResolutionOptions : resolutionOptions;
-    const currentSecondOptions = miniMaxH3 ? miniMaxH3SecondOptions : secondOptions;
-    const seconds = config.videoSeconds || "6";
-    const size = miniMaxH3 ? normalizeMiniMaxH3RatioValue(config.size) : normalizeVideoSizeValue(config.size);
+    const currentResolutionOptions = profile ? profile.resolutions.map(value => ({ value, label: value.toUpperCase() })) : miniMaxH3 ? miniMaxH3ResolutionOptions : resolutionOptions;
+    const currentSecondOptions = profile ? profile.seconds : miniMaxH3 ? miniMaxH3SecondOptions : secondOptions;
+    const seconds = profile ? normalized.videoSeconds : config.videoSeconds || "6";
+    const size = profile ? normalized.size : miniMaxH3 ? normalizeMiniMaxH3RatioValue(config.size) : normalizeVideoSizeValue(config.size);
     const dimensions = readSizeDimensions(size);
-    const resolution = miniMaxH3 ? normalizeMiniMaxH3ResolutionValue(config.vquality) : normalizeVideoResolutionValue(config.vquality);
+    const resolution = profile ? normalized.vquality : miniMaxH3 ? normalizeMiniMaxH3ResolutionValue(config.vquality) : normalizeVideoResolutionValue(config.vquality);
     const updateDimension = (key: "width" | "height", value: number | null) => {
         const next = Math.max(1, Math.floor(value || dimensions[key] || 720));
         onConfigChange("size", `${key === "width" ? next : dimensions.width}x${key === "height" ? next : dimensions.height}`);
@@ -68,13 +72,13 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
                                 {item.label}
                             </OptionPill>
                         ))}
-                        {miniMaxH3 ? null : <ResolutionInput value={resolution} theme={theme} onChange={(value) => onConfigChange("vquality", value)} />}
+                        {miniMaxH3 || profile ? null : <ResolutionInput value={resolution} theme={theme} onChange={(value) => onConfigChange("vquality", value)} />}
                     </div>
                 </SettingGroup>
                 <SettingGroup title={t("settingsPanels.video.size")} color={theme.node.muted}>
-                    {miniMaxH3 ? (
+                    {miniMaxH3 || profile ? (
                         <div className="grid grid-cols-4 gap-2.5">
-                            {miniMaxH3RatioOptions.map((value) => (
+                            {(profile ? ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"] : miniMaxH3RatioOptions).map((value) => (
                                 <OptionPill key={value} selected={size === value} theme={theme} onClick={() => onConfigChange("size", value)}>
                                     {value === "adaptive" ? t("settingsPanels.video.adaptive") : value}
                                 </OptionPill>
@@ -113,7 +117,7 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
                                 {value}s
                             </OptionPill>
                         ))}
-                        <NumberInput value={seconds} min={miniMaxH3 ? 4 : 1} max={miniMaxH3 ? 15 : 20} theme={theme} onChange={(value) => onConfigChange("videoSeconds", value)} />
+                        {profile && activeModel.includes("drama-video-") ? null : <NumberInput value={seconds} min={profile?.min ?? (miniMaxH3 ? 4 : 1)} max={profile?.max ?? (miniMaxH3 ? 15 : 20)} theme={theme} onChange={(value) => onConfigChange("videoSeconds", value)} />}
                     </div>
                 </SettingGroup>
             </div>
