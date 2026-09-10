@@ -1,5 +1,21 @@
 export default {
     imageDelivery: {
+        downloading: "图片已生成，正在领取",
+        pending: "已生成，待领取",
+        pendingHint: "图片已经生成。重新领取只下载原图，不会再次生成或扣费。",
+        retry: "重新领取图片",
+        regenerate: "重新生成（会计费）",
+        openOriginal: "打开原图",
+        copyOriginal: "复制原图链接",
+        generatedCount: "已生成 {{count}}",
+        pendingCount: "待领取 {{count}}",
+        historySaveFailed: "本地记录保存失败。请先保留原图链接，刷新后可能无法恢复。",
+        noSource: "没有可领取的图片结果。",
+        legacyMissing: "这条旧记录没有保存原图链接和错误详情，无法自动领取。重新生成会再次计费。",
+        interrupted: "上次领取中断，可以继续领取原图。",
+        generationInterrupted: "生成请求已中断，未保存到结果。无法确认生成是否完成，请先核对用量，避免重复计费。",
+        timeout: "图片下载超过60秒，已停止本次领取。请重试领取原图。",
+
         downloadFailed: "图片领取失败：{{reason}}", httpError: "图片下载返回 HTTP {{status}}", invalidImage: "返回内容不是有效图片",
         storageTimeout: "图片保存超时，请重试领取。", reclaim: "领取已生成图片",
     },

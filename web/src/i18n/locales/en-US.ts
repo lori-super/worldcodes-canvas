@@ -1,5 +1,21 @@
 export default {
     imageDelivery: {
+        downloading: "Image generated, retrieving",
+        pending: "Generated, awaiting retrieval",
+        pendingHint: "The image is already generated. Retrieve the original without generating or charging again.",
+        retry: "Retrieve image again",
+        regenerate: "Generate again (charged)",
+        openOriginal: "Open original",
+        copyOriginal: "Copy original link",
+        generatedCount: "Generated {{count}}",
+        pendingCount: "Awaiting retrieval {{count}}",
+        historySaveFailed: "Could not save the local record. Keep the original link before refreshing; recovery may be unavailable.",
+        noSource: "No image result is available to retrieve.",
+        legacyMissing: "This older record has no original link or error details. Automatic retrieval is unavailable; generating again will be charged.",
+        interrupted: "The previous retrieval was interrupted. Retrieve the original again.",
+        generationInterrupted: "The generation request was interrupted before a result was saved. Completion is unknown; check usage before generating again.",
+        timeout: "Image download exceeded 60 seconds. Retry retrieval of the original image.",
+
         downloadFailed: "Image retrieval failed: {{reason}}", httpError: "Image download returned HTTP {{status}}", invalidImage: "The response is not a valid image",
         storageTimeout: "Saving the image timed out. Retry retrieval.", reclaim: "Retrieve generated image",
     },
