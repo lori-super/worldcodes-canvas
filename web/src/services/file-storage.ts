@@ -1,5 +1,8 @@
 import localforage from "localforage";
 import { nanoid } from "nanoid";
+import i18n from "@/i18n";
+
+import { withLocalProxy } from "@/stores/use-config-store";
 
 export type UploadedFile = { url: string; storageKey: string; bytes: number; mimeType: string; width?: number; height?: number; durationMs?: number };
 
@@ -7,9 +10,9 @@ const store = localforage.createInstance({ name: "infinite-canvas", storeName: "
 const objectUrls = new Map<string, string>();
 
 export async function uploadMediaFile(input: string | Blob, prefix = "file"): Promise<UploadedFile> {
-    const blob = typeof input === "string" ? await (await fetch(input)).blob() : input;
+    const blob = typeof input === "string" ? await (await fetch(withLocalProxy(input), { signal: AbortSignal.timeout(120_000) })).blob() : input;
     const storageKey = `${prefix}:${nanoid()}`;
-    await store.setItem(storageKey, blob);
+    await withMediaStorageTimeout(store.setItem(storageKey, blob));
     const url = URL.createObjectURL(blob);
     objectUrls.set(storageKey, url);
     const meta = blob.type.startsWith("video/") ? await readVideoMeta(url) : blob.type.startsWith("audio/") ? await readAudioMeta(url) : {};
@@ -68,11 +71,28 @@ export function collectMediaStorageKeys(value: unknown, keys = new Set<string>()
 function readVideoMeta(url: string) {
     return new Promise<{ width: number; height: number; durationMs?: number }>((resolve) => {
         const video = document.createElement("video");
-        const done = () => resolve({ width: video.videoWidth || 1280, height: video.videoHeight || 720, durationMs: Number.isFinite(video.duration) ? Math.round(video.duration * 1000) : undefined });
+        const done = () => {
+            clearTimeout(timer);
+            video.onloadedmetadata = video.onerror = null;
+            resolve({ width: video.videoWidth || 1280, height: video.videoHeight || 720, durationMs: Number.isFinite(video.duration) ? Math.round(video.duration * 1000) : undefined });
+        };
+        const timer = setTimeout(done, 5_000);
+        video.preload = "metadata";
         video.onloadedmetadata = done;
         video.onerror = done;
         video.src = url;
     });
+}
+
+export async function withMediaStorageTimeout<T>(operation: Promise<T>, errorMessage = i18n.t("videoDelivery.storageTimeout")): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+        return await Promise.race([operation, new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error(errorMessage)), 15_000);
+        })]);
+    } finally {
+        clearTimeout(timer);
+    }
 }
 
 function readAudioMeta(url: string) {

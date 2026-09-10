@@ -71,7 +71,7 @@ function withSourceMeta(source: PromptSource, items: RawPrompt[]): Prompt[] {
         referenceImageUrls: Array.isArray(item.referenceImageUrls) ? item.referenceImageUrls : [],
         sourceId: source.id,
         category: source.name,
-        githubUrl: item.sourceUrl || source.homepage,
+        githubUrl: source.homepage,
     }));
 }
 

@@ -1,51 +1,66 @@
 ---
-title: Codex App Plugin
-description: Install and use the Infinite Canvas plugin in Codex App
+title: Codex App Plugin and Local Agent
+description: Install and use the WorldCodes-owned Canvas plugin and Agent
 ---
 
-# Codex App Plugin
+# Codex App Plugin and Local Agent
 
-The plugin connects Codex to a local Canvas Agent, allowing Codex to open Infinite Canvas, read and create nodes, connect nodes, and start generation workflows. Its source is in `plugins/infinite-canvas/`.
+WorldCodes Canvas provides its own Codex plugin and local Agent. After installation, ask Codex to “Open WorldCodes Canvas” to open the site, read and create nodes, connect workflows, and start generation.
 
-## Ask Codex to install it
+Image/video generation, reference media, and temporary R2 uploads do not require the Agent.
 
-Send this request to Codex:
+## Option 1: Install the WorldCodes Codex plugin
+
+```bash
+codex plugin marketplace add lori-super/worldcodes-canvas
+codex plugin add worldcodes-canvas@worldcodes-canvas
+```
+
+Start a new Codex task after installation and enter:
 
 ```text
-Install the Infinite Canvas Codex plugin from https://github.com/basketikun/infinite-canvas.git.
-Clone it to ~/plugins/infinite-canvas, verify plugins/infinite-canvas/.codex-plugin/plugin.json,
-add the repository to my personal marketplace with `codex plugin marketplace add ~`,
-then install `infinite-canvas@personal`. Validate the installation and tell me whether a new
-conversation is required to load the Skill and MCP tools.
+Open WorldCodes Canvas
 ```
 
-## Manual installation
+The plugin loads the WorldCodes Canvas MCP. Its `open-canvas` Skill starts the self-hosted WorldCodes Agent, reads the Local URL and Connect token, opens `https://canvas.worldcodes.online/`, and connects automatically.
+
+## Option 2: Run the Agent directly
+
+For web-side chat without loading Canvas MCP tools into a Codex task, run:
 
 ```bash
-mkdir -p ~/plugins
-git clone https://github.com/basketikun/infinite-canvas.git ~/plugins/infinite-canvas
-codex plugin marketplace add ~
-codex plugin add infinite-canvas@personal
+npx -y https://canvas.worldcodes.online/downloads/worldcodes-canvas-agent-0.6.1.tgz
 ```
 
-The personal marketplace entry must point to `./plugins/infinite-canvas/plugins/infinite-canvas`. Start a new Codex conversation after installation so the Skill and MCP tools load completely.
+The Agent prints a Local URL and Connect token. The site normally discovers them automatically; enter them manually in the Agent panel only if discovery fails.
 
-For development from this repository:
+## MCP versus the web Agent
+
+- The plugin's MCP process provides canvas tools to Codex.
+- The regular Agent process provides the local web connection and sidebar chat.
+- Both read the same local connection settings but have different responsibilities.
+- Running the regular Agent alone does not install MCP or add tools to the Codex context.
+
+The compatibility MCP ID `infinite-canvas` and local directory `~/.infinite-canvas` remain temporarily for existing users. The plugin, Agent package, service name, repository, and site are all provided by WorldCodes.
+
+## Security boundary
+
+The Agent needs access to the user's local Codex login, Skills, workspace, and files, so it runs only on the user's computer. It binds to `127.0.0.1`, authenticates the site with a token, and locks allowed Origins. Relay never stores or runs local workspaces.
+
+## Update and removal
+
+Reinstall the plugin after changing its manifest, MCP configuration, or Skills, then start a new Codex task.
 
 ```bash
-cd /path/to/infinite-canvas
-codex plugin marketplace add "$(pwd)"
-codex plugin add infinite-canvas@infinite-canvas-local
+codex plugin remove worldcodes-canvas@worldcodes-canvas
+codex mcp remove infinite-canvas
 ```
 
-## Usage
-
-In a new Codex conversation, ask it to open Infinite Canvas, create a canvas, and connect Codex. The plugin starts Canvas Agent, reads its connection URL and token, opens `https://canvas.best/`, and creates and connects a canvas. It starts a local frontend only when explicitly requested.
-
-You can then ask Codex to summarize the current canvas, create prompts from selected nodes, or organize nodes into a generation workflow.
-
-Reinstall or refresh the plugin after changing its manifest, MCP configuration, Skills, exposed MCP tools, app, or entry scripts. The agent's default MCP command is:
+## Local development
 
 ```bash
-npx -y @basketikun/canvas-agent mcp
+cd /absolute/path/to/worldcodes-canvas/canvas-agent
+npm install
+npm run build
+node dist/index.js --debug
 ```

@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useMemo, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import { useCallback, useMemo, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 
 import { requestEdit, requestGeneration, requestImageQuestion, type AiTextMessage } from "@/services/api/image";
+import { imageToDataUrl } from "@/services/image-storage";
 import { requestVideoGeneration, storeGeneratedVideo } from "@/services/api/video";
 import { decodeChannelModel, selectableModelsByCapability, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
 import { buildGenerationConfig } from "@/lib/canvas/canvas-generation-helpers";
 import { buildNodeContext } from "@/lib/canvas/plugin-node-context";
 import { getNodeDefinition } from "@/lib/canvas/node-registry";
-import { ensurePluginsLoaded } from "@/lib/canvas/plugin-loader";
 import { canvasThemes } from "@/lib/canvas-theme";
 import type { CanvasNodeToolbarItem, CanvasPluginAi, CanvasPluginHost } from "@/types/canvas-plugin";
 import type { ReferenceImage } from "@/types/image";
@@ -31,7 +31,7 @@ type PluginHostParams = {
 
 /**
  * Plugin node host capabilities: expose host-side AI generation, canvas access, and panel controls
- * through plugin-callable host/ai objects. Loads installed remote plugins on mount and returns renderers for plugin panels and toolbars.
+ * through plugin-callable host/ai objects. WorldCodes does not load remote plugin code.
  */
 export function usePluginHost(params: PluginHostParams) {
     const { t } = useTranslation();
@@ -53,8 +53,16 @@ export function usePluginHost(params: PluginHostParams) {
                 const config = { ...buildGenerationConfig(effectiveConfig, undefined, "image"), count: String(options?.count || 1), ...(options?.model ? { model: options.model } : {}), ...(options?.size ? { size: options.size } : {}) };
                 ensureReady(config);
                 const references = toReferences(options?.references);
-                const items = references.length ? await requestEdit(config, prompt, references, undefined, { signal: options?.signal }) : await requestGeneration(config, prompt, { signal: options?.signal });
-                return { images: items.map((item) => item.dataUrl) };
+                const items = references.length ? await requestEdit(config, prompt, references, { signal: options?.signal }) : await requestGeneration(config, prompt, { signal: options?.signal });
+                const images = await Promise.all(items.map(async (item) => {
+                    try {
+                        return await imageToDataUrl({ dataUrl: item.dataUrl }, { signal: options?.signal });
+                    } catch (error) {
+                        if (options?.signal?.aborted) throw error;
+                        return item.dataUrl;
+                    }
+                }));
+                return { images };
             },
             generateVideo: async (prompt, options) => {
                 const config = {
@@ -64,7 +72,7 @@ export function usePluginHost(params: PluginHostParams) {
                     ...(options?.seconds ? { videoSeconds: options.seconds } : {}),
                 };
                 ensureReady(config);
-                const file = await storeGeneratedVideo(await requestVideoGeneration(config, prompt, toReferences(options?.references), { signal: options?.signal }));
+                const file = await storeGeneratedVideo(await requestVideoGeneration(config, prompt, { images: toReferences(options?.references) }, { signal: options?.signal }));
                 return { url: file.url, mimeType: file.mimeType, width: file.width, height: file.height, durationMs: file.durationMs };
             },
             generateText: async (prompt, options) => {
@@ -136,11 +144,6 @@ export function usePluginHost(params: PluginHostParams) {
         },
         [pluginHost, t, theme],
     );
-
-    // Load installed remote plugins on startup.
-    useEffect(() => {
-        void ensurePluginsLoaded();
-    }, []);
 
     return { pluginHost, renderPluginPanel, buildNodeToolbarItems };
 }

@@ -9,13 +9,13 @@ import { getMDXComponents } from '@/components/mdx';
 
 const messages = {
   en: {
-    title: 'Infinite Canvas Documentation',
-    description: 'Features, canvas guides, deployment, development, business, and support',
+    title: 'WorldCodes Canvas Documentation',
+    description: 'Canvas, models, storage, deployment, and local Agent guides',
     index: 'index.md',
   },
   'zh-CN': {
-    title: '无限画布文档',
-    description: '功能说明、操作手册、部署方式、开发文档、商务合作与赞助支持',
+    title: 'WorldCodes Canvas 文档',
+    description: '画布、模型、存储、部署与本地 Agent 使用说明',
     index: 'index.zh-CN.md',
   },
 };
@@ -32,7 +32,7 @@ export default async function Page({ params }: PageProps<'/[lang]/docs'>) {
   const toc = getTableOfContents(content);
 
   return (
-    <DocsPage toc={toc}>
+    <DocsPage toc={toc} tableOfContent={{ style: 'clerk' }}>
       <DocsTitle>{text.title}</DocsTitle>
       <DocsDescription>{text.description}</DocsDescription>
       <DocsBody>

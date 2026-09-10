@@ -1,44 +1,30 @@
-# 无限画布文档索引
+# WorldCodes Canvas 文档索引
 
-## 项目介绍
+## 核心文档
 
 - [快速开始](/zh-CN/docs/overview/quick-start)
 - [功能介绍](/zh-CN/docs/overview/features)
-- [Render 部署](/zh-CN/docs/overview/render)
 - [Docker 部署](/zh-CN/docs/overview/docker)
-- [第三方 GitHub 提示词仓库](/zh-CN/docs/overview/third-party-prompt-repositories)
+- [静态托管边界](/zh-CN/docs/overview/render)
+- [本地 Agent](/zh-CN/docs/overview/codex-app-plugin)
 
-## 操作手册
+## 画布与开发
 
 - [画布节点操作手册](/zh-CN/docs/canvas/canvas-node-manual)
 - [画布快捷键](/zh-CN/docs/canvas/canvas-shortcuts)
-
-## 开发与数据
-
 - [本地开发](/zh-CN/docs/development/local-development)
 - [画布数据结构](/zh-CN/docs/development/canvas-data-structure)
+- [本地 Codex 连接原理](/zh-CN/docs/development/local-codex-canvas)
 
-## 商务合作
+## 安全与许可
 
 - [开源协议](/zh-CN/docs/business/license)
-- [商务合作](/zh-CN/docs/business/business)
-
-## 支持与安全
-
 - [漏洞提交](/zh-CN/docs/support/security)
-- [赞助支持](/zh-CN/docs/support/sponsor)
 
-## 项目进度
+## 运行边界
 
-- [更新日志](/zh-CN/docs/progress/changelog)
-- [待测试](/zh-CN/docs/progress/pending-test)
-- [TODO](/zh-CN/docs/progress/todo)
-
-## 说明
-
-- 当前画布项目和“我的素材”主要保存在浏览器本地，跨设备可自行配置 WebDAV 同步。
-- AI API Key 保存在浏览器本地，并由前端直接请求 OpenAI 兼容接口。
-
-## 原理说明
-
-- [本地 Codex 连接画布原理](/zh-CN/docs/development/local-codex-canvas)
+- 生产模型请求只走同源 WorldCodes Relay。
+- 用户的 WorldCodes API Key 保存在浏览器；供应商密钥和路由保留在 Relay。
+- 画布与素材主要保存在浏览器 IndexedDB。
+- 本地参考媒体仅在生成需要时直传私有 R2 临时对象。
+- 提示词库预置 7 组经过审核的只读 JSON 数据源，页面不提供外部仓库跳转；生产版仍不放行外部 WebDAV 或任意模型地址。

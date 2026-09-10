@@ -11,7 +11,7 @@ const messages = {
   en: {
     title: 'Changelog',
     description: 'Project release history',
-    content: '# Changelog\n\nThe detailed changelog is currently maintained in Chinese. See the [source changelog](https://github.com/basketikun/infinite-canvas/blob/main/CHANGELOG.md) for all releases.',
+    content: '# Changelog\n\nThe detailed changelog is currently maintained in Chinese in the local source tree. Switch to Simplified Chinese to view all releases.',
   },
   'zh-CN': {
     title: '更新日志',
@@ -30,7 +30,7 @@ export default async function ChangelogPage({ params }: PageProps<'/[lang]/docs/
   const toc = getTableOfContents(changelog);
 
   return (
-    <DocsPage toc={toc}>
+    <DocsPage toc={toc} tableOfContent={{ style: 'clerk' }}>
       <DocsTitle>{text.title}</DocsTitle>
       <DocsDescription>{text.description}</DocsDescription>
       <DocsBody>

@@ -1,13 +1,11 @@
 ---
 title: 本地开发
-description: 前端优先的本地开发方式
+description: WorldCodes Canvas 前端、Relay 与文档的本地边界
 ---
 
 # 本地开发
 
-当前主应用以 `web/` 前端为主，AI 请求由浏览器前台直连用户自己的 OpenAI 兼容接口。
-
-## 1. 启动前端
+## 启动前端
 
 ```bash
 cd web
@@ -15,26 +13,21 @@ bun install
 bun run dev
 ```
 
-前端默认访问：
+打开 `http://localhost:3000`。Vite 不包含 Relay，默认同源模型请求会落到本地前端服务器，因此本地模式默认只用于界面开发。
 
-```text
-http://localhost:3000
-```
+如需验证生成流程，应在受控环境为本地域名配置同源反向代理，或显式使用允许跨域的测试 Relay。不要把供应商密钥写进前端源码或构建变量。
 
-## 2. 配置模型
-
-打开右上角配置弹窗，填写自己的 `Base URL`、`API Key` 和模型名。第三方提示词和 WebDAV 都由浏览器前端直连。
-
-## 3. 启动文档站
-
-如果需要单独调整文档站，在 `docs` 目录执行：
+## 启动文档站
 
 ```bash
+cd docs
+bun install
 bun run dev
 ```
 
-## 常见场景
+常用目录：
 
-- 改画布、页面和交互：主要看 `web/`
-- 改提示词缓存：主要看 `web/src/services/api/prompts.ts`
-- 改文档站内容：主要看 `docs/content/docs/`
+- 画布与页面：`web/`
+- 同源模型请求：`web/src/services/api/`
+- WorldCodes 生产路由与 R2：`deploy/worldcodes/`
+- 文档内容：`docs/content/docs/`

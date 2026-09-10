@@ -1,6 +1,10 @@
 {
-  "name": "@basketikun/canvas-agent",
-  "version": "0.6.0",
+  "name": "@worldcodes/canvas-agent",
+  "version": "0.6.1",
+  "description": "WorldCodes Canvas 的本地 Codex Agent 与 MCP 桥接器",
+  "author": "WorldCodes",
+  "homepage": "https://canvas.worldcodes.online/docs",
+  "repository": "https://github.com/lori-super/worldcodes-canvas",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",

@@ -27,10 +27,11 @@ export type CanvasImageGenerationType = "generation" | "edit";
 
 export type CanvasNodeImage = {
     id: string;
+    sourceUrl?: string;
     status: CanvasNodeStatus;
     errorDetails?: string;
     content: string;
-    storageKey: string;
+    storageKey?: string;
     naturalWidth: number;
     naturalHeight: number;
     bytes: number;
@@ -45,6 +46,8 @@ export type CanvasNodeText = {
 };
 
 export type CanvasNodeMetadata = {
+    videoTask?: import("@/services/api/video").VideoGenerationTask;
+    videoDelivery?: import("@/services/api/video").VideoDeliveryProgress;
     content?: string;
     composerContent?: string;
     prompt?: string;
@@ -66,6 +69,7 @@ export type CanvasNodeMetadata = {
     vquality?: string;
     generateAudio?: string;
     watermark?: string;
+    videoMode?: string;
     audioVoice?: string;
     audioFormat?: string;
     audioSpeed?: string;
@@ -80,6 +84,8 @@ export type CanvasNodeMetadata = {
     mimeType?: string;
     bytes?: number;
     durationMs?: number;
+    videoTaskId?: string;
+    videoTaskProvider?: "openai" | "gemini";
     groupId?: string;
     interactive?: boolean; // Plugin node interaction/move state; see CanvasNodeDefinition.interactionToggle.
 };

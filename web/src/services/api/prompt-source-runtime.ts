@@ -73,7 +73,7 @@ function normalizeItems(values: unknown[], source: PromptSource) {
             createdAt: stringValue(record.createdAt),
             updatedAt: stringValue(record.updatedAt),
             author: stringValue(record.author),
-            sourceUrl: absoluteUrl(source.url, stringValue(record.sourceUrl)),
+            sourceUrl: source.builtIn ? "" : absoluteUrl(source.url, stringValue(record.sourceUrl)),
             imageMode: optionalString(record.imageMode),
             imageModel: optionalString(record.imageModel),
             imageSize: optionalString(record.imageSize),

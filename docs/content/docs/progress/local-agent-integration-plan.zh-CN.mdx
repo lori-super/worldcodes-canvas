@@ -57,16 +57,10 @@ canvas-agent/
 
 ## 本机启动方式
 
-MVP 阶段优先提供 `npx`：
+WorldCodes 自有 npm 包发布前，优先从本地源码启动：
 
 ```bash
-npx -y @basketikun/canvas-agent
-```
-
-在本仓库内开发调试时可直接运行：
-
-```bash
-cd canvas-agent
+cd /path/to/worldcodes-canvas/canvas-agent
 npm install
 npm run build
 node dist/index.js
@@ -75,7 +69,7 @@ node dist/index.js
 启动后输出：
 
 ```txt
-Infinite Canvas Agent
+WorldCodes Canvas Agent
 Local URL: http://127.0.0.1:17371
 Connect token: xxxxxx
 ```
@@ -135,7 +129,7 @@ Codex CLI <-> canvas-agent MCP <-> 当前网页画布
 用户本机 Codex 配置示例：
 
 ```bash
-codex mcp add infinite-canvas -- npx -y @basketikun/canvas-agent mcp
+codex mcp add infinite-canvas -- node /absolute/path/to/worldcodes-canvas/canvas-agent/dist/index.js mcp
 ```
 
 本仓库调试时可使用，实际配置建议替换为本机绝对路径：
@@ -179,8 +173,8 @@ Claude 后续接入时再单独做 Claude Adapter；当前前端默认只展示 
 
 参考：
 
-- https://github.com/openai/codex/tree/main/codex-rs/app-server
-- https://developers.openai.com/codex/codex-manual.md
+- Codex App Server 协议说明
+- Codex 本地运行说明
 
 ## Claude Code 接入优先级
 
@@ -189,15 +183,15 @@ Claude Code 侧当前 MVP 先调用本机 Claude Code CLI 的流式 JSON 输出�
 如果希望 Claude Code 也能操作当前画布，需要给 Claude Code 配置同一个 MCP：
 
 ```bash
-claude mcp add --scope user --transport stdio infinite-canvas -- npx -y @basketikun/canvas-agent mcp
+claude mcp add --scope user --transport stdio infinite-canvas -- node /absolute/path/to/worldcodes-canvas/canvas-agent/dist/index.js mcp
 ```
 
 Canvas Agent 调用 Claude Code 时默认允许 `mcp__infinite-canvas__*`，避免 print 模式被工具审批卡住；真正修改画布仍由网页侧边栏确认。
 
 参考：
 
-- https://docs.anthropic.com/en/docs/claude-code/sdk
-- https://code.claude.com/docs/en/agent-sdk/typescript
+- Claude Code SDK 说明
+- Claude Agent SDK TypeScript 说明
 
 ## 安全边界
 
@@ -240,7 +234,7 @@ Canvas Agent 调用 Claude Code 时默认允许 `mcp__infinite-canvas__*`，避�
 
 ## MVP 验收标准
 
-- 用户运行 `npx -y @basketikun/canvas-agent` 后，线上画布能显示已连接。
+- 用户从本地源码运行 `node canvas-agent/dist/index.js` 后，线上画布能显示已连接。
 - 用户在 Codex CLI 中可以创建文本节点、移动节点、连接节点。
 - 网页侧边栏能发送一条消息给本地 Codex，并展示流式回复。
 - 网页侧边栏默认只展示本地 Codex，并展示结构化回复。

@@ -1,7 +1,9 @@
 services:
   app:
-    image: ghcr.io/basketikun/infinite-canvas:latest
-    container_name: infinite-canvas
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: worldcodes-canvas
     ports:
       - "3000:3000"
     restart: unless-stopped

@@ -1,14 +1,14 @@
 {
-  "name": "infinite-canvas-local",
+  "name": "worldcodes-canvas",
   "interface": {
-    "displayName": "Infinite Canvas"
+    "displayName": "WorldCodes Canvas"
   },
   "plugins": [
     {
-      "name": "infinite-canvas",
+      "name": "worldcodes-canvas",
       "source": {
         "source": "local",
-        "path": "./plugins/infinite-canvas"
+        "path": "./plugins/worldcodes-canvas"
       },
       "policy": {
         "installation": "AVAILABLE",

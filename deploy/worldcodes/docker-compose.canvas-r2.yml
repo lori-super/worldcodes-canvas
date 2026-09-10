@@ -1,0 +1,5 @@
+services:
+  new-api:
+    # 生产安装脚本会替换为 /etc/worldcodes/relay-temporary-media.env。
+    env_file:
+      - __TEMP_MEDIA_ENV_FILE__

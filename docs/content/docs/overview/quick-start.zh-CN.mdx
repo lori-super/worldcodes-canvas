@@ -1,48 +1,34 @@
 ---
 title: 快速开始
-description: 用最少步骤把无限画布跑起来
+description: 启动 WorldCodes Canvas，并理解本地预览与生产 Relay 的区别
 ---
 
 # 快速开始
 
-如果你只是想先把项目跑起来，优先部署或启动 `web/` 前端。
-
-## Vercel 部署
-
-在 Vercel 中导入仓库即可，根目录 `vercel.json` 会构建 `web/`。当前版本的 AI 请求由浏览器前台直连用户自己的 OpenAI 兼容地址，不需要额外配置服务端。
-
-## 本地启动
+## 本地预览
 
 ```bash
-git clone git@github.com:basketikun/infinite-canvas.git
-cd infinite-canvas
-cd web
+cd /path/to/worldcodes-canvas/web
 bun install
 bun run dev
 ```
 
-启动后访问：
+打开 `http://localhost:3000`。本地 Vite 只提供界面预览，不包含同源 Relay；在没有额外反向代理时，默认模型生成接口不会工作。
 
-```text
-http://localhost:3000
-```
+## 生产部署
 
-## Docker 启动
+WorldCodes 生产结构由三部分组成：
 
-如果你需要基于当前源码构建镜像：
+1. Canvas 静态站点部署到 `canvas.worldcodes.online`。
+2. 同域 `/v1/*` 与 `/v1beta/*` 由 Caddy 反向代理到 WorldCodes Relay。
+3. MiniMax H3 的本地参考素材由浏览器直传 R2 临时对象，上游通过临时短域名读取。
 
-```bash
-docker build -t infinite-canvas .
-docker run --rm -p 3000:3000 infinite-canvas
-```
+部署合同、Caddy 路由、R2 配置和发布校验位于仓库的 `deploy/worldcodes/`。不要只把静态前端发布到 Vercel 或 Render 后当作完整生产站；那样没有同源 Relay，默认生成能力不可用。
 
-## 首次使用建议
+## 首次使用
 
-- 先打开右上角配置弹窗，填入自己的 `Base URL`、`API Key` 和模型名。
-- 如果需要提示词仓库内容，打开 `/prompts` 会由浏览器前端直连拉取并缓存到 IndexedDB。
-- 如果需要跨设备同步画布、素材和生成记录，可在配置弹窗中填写 WebDAV。
+1. 打开配置页，在 WorldCodes Relay 渠道填入用户自己的 WorldCodes API Key。
+2. 进入图片、视频或画布工作台，选择已经分组的模型。
+3. 本地参考图片、视频和音频会保存在当前浏览器；需要 H3 公网读取时自动走 R2 临时上传。
 
-## 说明
-
-- 当前画布项目和“我的素材”主要保存在浏览器本地，WebDAV 同步需要用户自行配置。
-- AI API Key 保存在浏览器本地，并由前端直接请求 OpenAI 兼容接口。
+生产版预置 7 组经过审核的只读提示词 JSON 数据源，但不提供外部仓库跳转，也不启用外部 WebDAV 或任意模型 Base URL。自托管者若要增加其他来源，需要同步调整 CSP 与安全策略。
