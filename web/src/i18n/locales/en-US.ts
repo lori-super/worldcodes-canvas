@@ -210,6 +210,8 @@ export default {
         busy: "The Video Studio is already running a task",
         generated: "Video generated",
         timeout: "Video generation timed out. Try again later.",
+        stillGenerating: "The task is still generating. It was kept so you can continue polling.",
+        continuePolling: "Continue polling",
         resultTitle: "Generated video",
         source: "Video Studio",
         empty: "No video generated yet",

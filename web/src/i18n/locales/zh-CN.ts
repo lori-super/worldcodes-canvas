@@ -210,6 +210,8 @@ export default {
         busy: "视频工作台已有任务正在运行",
         generated: "视频已生成",
         timeout: "视频生成超时，请稍后重试",
+        stillGenerating: "任务仍在生成，已保留任务，可继续查询",
+        continuePolling: "继续查询",
         resultTitle: "生成视频",
         source: "视频创作台",
         empty: "还没有生成视频",
