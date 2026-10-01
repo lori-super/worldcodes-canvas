@@ -5,6 +5,8 @@ description: Implemented changes that still need manual verification
 
 # Pending Tests
 
+- 图片创作页领取恢复：结果返回后立即保存原图；下载超时、断网或本地保存失败显示“已生成，待领取”，支持重新领取、打开及复制原图链接。刷新后从原历史继续领取并更新同一记录；更改模型、提示词或清空 Key 后重领不应新增生成 POST。批量部分失败必须保留各图片和具体错误。旧失败记录没有原图地址时须说明无法自动恢复。
+
 - 图片领取恢复：生成结果的外链保留在图片槽中，下载或保存失败后，单图重试只领取原结果；刷新后仍可重领。节点显示具体 HTTP / 网络 / 保存错误。PandaTK 标准结果 URL 经 `/v1/images/content/pandatk/:uuid` 同源下载。
 
 - PandaTK 图片领取：刷新页面加载最新 CSP 后，确认图片链接可以下载并保存到画布；检查线上 `connect-src` 包含 `https://download.xmimage2.cc.cd`。历史同步请求没有持久化结果，不能靠点击重新生成恢复原图。

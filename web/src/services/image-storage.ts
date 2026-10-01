@@ -77,7 +77,7 @@ async function fetchImageBlob(url: string, options?: ImageReadOptions) {
         if (!blob.size || /(?:json|text\/html)/i.test(blob.type)) throw namedError(IMAGE_RESPONSE_ERROR, i18n.t("imageDelivery.invalidImage"));
         return blob;
     } catch (error) {
-        if (timedOut) throw namedError(IMAGE_TIMEOUT_ERROR);
+        if (timedOut) throw namedError(IMAGE_TIMEOUT_ERROR, i18n.t("imageDelivery.timeout"));
         if (options?.signal?.aborted) throw abortReason(options.signal);
         throw error;
     } finally {
