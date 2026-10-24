@@ -37,7 +37,8 @@ test('MiniMax H3 sends DMC content with public URLs, 768P and an integer duratio
     });
 });
 test('profiles snap durations, resolutions and ratios to the model options', () => {
-    expect(normalizeProfileVideo('seedance-2.5-480p', '11', '720', 'auto')).toEqual({ videoSeconds: '10', vquality: '480p', size: '16:9' });
+    expect(normalizeProfileVideo('omni', '7', '480', 'auto')).toEqual({ videoSeconds: '6', vquality: '720p', size: '16:9' });
+    expect(normalizeProfileVideo('seedance-2.0-mini', '20', '720', '9:16')).toEqual({ videoSeconds: '15', vquality: '720p', size: '9:16' });
     expect(normalizeProfileVideo('omni', '30', '1080', '9:16')).toEqual({ videoSeconds: '10', vquality: '1080p', size: '9:16' });
     expect(normalizeProfileVideo('wan-3.0-720p-30s', '5', '720p', '1:1')).toEqual({ videoSeconds: '30', vquality: '720p', size: '1:1' });
     expect(normalizeProfileVideo('MiniMax-H3', '40', '720', '16:9')).toEqual({ videoSeconds: '15', vquality: '768p', size: '16:9' });

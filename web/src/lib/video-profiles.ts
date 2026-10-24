@@ -1,4 +1,4 @@
-// WorldCodes「视频专用」分组的在售型号（渠道 26，2026-10-24）。时长/分辨率/参考素材上限取自上游广场说明与网关校验；
+// WorldCodes「视频专用」分组的在售型号（渠道 26，2026-10-25 按 ai666 /v1/models 下架 6 个已不存在的 seedance/sd 型号）。时长/分辨率/参考素材上限取自上游广场说明与网关校验；
 // 没写明的参考素材上限按同系列厂商文档取保守值。durations 表示上游只接受这几档时长。
 export type VideoProfile = { min: number; max: number; durations?: number[]; defaultSeconds: number; resolutions: string[]; images: number; videos: number; audios: number };
 const profile = (min: number, max: number, resolutions: string[], images: number, videos: number, audios: number, defaultSeconds = 5): VideoProfile => ({ min, max, defaultSeconds, resolutions, images, videos, audios });
@@ -13,19 +13,13 @@ export const videoProfiles: Record<string, VideoProfile> = {
     omni: discrete([4, 6, 8, 10], ["720p", "1080p"], 7, 0, 0, 8),
     "sd-2.0-480p": seedance20(["480p"], 0),
     "sd-2.0-720p-plus": seedance20(["720p"], 0),
-    "sd-2.0-fast-720p": seedance20(["720p"]),
     "sd-2.5-480p": sd25("480p"),
     "sd-2.5-480p-plus": sd25("480p"),
     "sd-2.5-720p": sd25("720p"),
     "sd-2.5-720p-plus": sd25("720p"),
     "sd-2.5-720p-pro": sd25("720p"),
-    "sd-2.5-1080p-ultra": sd25("1080p"),
     "seedance-2.0-720p": seedance20(["720p"]),
     "seedance-2.0-mini": seedance20(["480p", "720p"]),
-    "seedance-2.0-mini-480p": seedance20(["480p"]),
-    "seedance-2.0-mini-720p": seedance20(["720p"]),
-    "seedance-2.5-480p": discrete([5, 8, 10, 12, 13, 15, 30], ["480p"], 9, 0, 3),
-    "seedance-2.5-720p": profile(4, 30, ["720p"], 30, 0, 10, 30),
     "seedance-2.5-720p-pro": profile(4, 30, ["720p"], 30, 0, 10),
     "wan-3.0": wan(["720p", "1080p"]),
     "wan-3.0-1080p": wan(["1080p"]),
