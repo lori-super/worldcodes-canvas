@@ -71,6 +71,19 @@ test("the formal WorldCodes origin keeps the Nano Banana Pro Relay route", async
     expect(options.headers["x-goog-api-key"]).toBe("formal-key");
 });
 
+test("the hosted canvas sends Gemini images saved as https://worldcodes.online through the same-origin proxy", async () => {
+    const { requestGeneration } = await import("../src/services/api/image");
+    const { defaultConfig } = await import("../src/stores/use-config-store");
+    const model = "worldcodes::gemini-3-pro-image-preview";
+    Object.defineProperty(globalThis, "location", { configurable: true, value: { origin: "https://canvas.worldcodes.online", href: "https://canvas.worldcodes.online/" } });
+    try {
+        await requestGeneration({ ...defaultConfig, model, imageModel: model, channels: defaultConfig.channels.map((channel) => ({ ...channel, baseUrl: "https://worldcodes.online", apiKey: "k" })) }, "test");
+        expect(post.mock.calls[0][0]).toBe("/v1beta/models/gemini-3-pro-image-preview:generateContent");
+    } finally {
+        Object.defineProperty(globalThis, "location", { configurable: true, value: { href: "https://canvas.worldcodes.online/" } });
+    }
+});
+
 test("external Gemini uses the supported imageConfig payload", async () => {
     const { requestGeneration } = await import("../src/services/api/image");
     const { defaultConfig } = await import("../src/stores/use-config-store");

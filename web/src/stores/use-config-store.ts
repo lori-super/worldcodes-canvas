@@ -516,8 +516,24 @@ function uniqueModelOptions(models: string[]) {
     return Array.from(new Set((models || []).map((model) => model.trim()).filter(Boolean)));
 }
 
+// canvas.worldcodes.online proxies the WorldCodes API paths it uses; the API origin rejects cross-origin browser requests.
+const WORLD_CODES_API_ORIGIN = "https://worldcodes.online";
+const WORLD_CODES_CANVAS_ORIGIN = "https://canvas.worldcodes.online";
+
+/** On the hosted canvas, send channels saved as https://worldcodes.online through the same-origin proxy instead. */
+export function sameOriginWorldCodesBaseUrl(baseUrl: string) {
+    const value = baseUrl.trim();
+    if (typeof window === "undefined" || window.location?.origin !== WORLD_CODES_CANVAS_ORIGIN) return value;
+    try {
+        const url = new URL(value);
+        return url.origin === WORLD_CODES_API_ORIGIN ? url.pathname : value;
+    } catch {
+        return value;
+    }
+}
+
 export function buildApiUrl(baseUrl: string, path: string) {
-    const normalizedBaseUrl = baseUrl.trim().replace(/\/+$/, "");
+    const normalizedBaseUrl = sameOriginWorldCodesBaseUrl(baseUrl).replace(/\/+$/, "");
     const lowerBaseUrl = normalizedBaseUrl.toLowerCase();
     const apiBaseUrl = lowerBaseUrl.endsWith("/v1") ? normalizedBaseUrl : `${normalizedBaseUrl}/v1`;
     return withLocalProxy(`${apiBaseUrl}${path}`);
