@@ -36,6 +36,17 @@ test('MiniMax H3 sends DMC content with public URLs, 768P and an integer duratio
         ],
     });
 });
+test('on the hosted canvas, channels saved as https://worldcodes.online use the same-origin proxy', async () => {
+    const previous = (globalThis as { location?: unknown }).location;
+    Object.defineProperty(globalThis, 'location', { configurable: true, value: { origin: 'https://canvas.worldcodes.online', href: 'https://canvas.worldcodes.online/video' } });
+    try {
+        const channels = config.channels.map(c => ({ ...c, baseUrl: 'https://worldcodes.online' }));
+        await createVideoGenerationTask({ ...config, channels, model: 'worldcodes-video::MiniMax-H3' }, 'test');
+        expect(post.mock.calls[0][0]).toBe('/v1/videos');
+    } finally {
+        Object.defineProperty(globalThis, 'location', { configurable: true, value: previous });
+    }
+});
 test('profiles snap durations, resolutions and ratios to the model options', () => {
     expect(normalizeProfileVideo('omni', '7', '480', 'auto')).toEqual({ videoSeconds: '6', vquality: '720p', size: '16:9' });
     expect(normalizeProfileVideo('seedance-2.0-mini', '20', '720', '9:16')).toEqual({ videoSeconds: '15', vquality: '720p', size: '9:16' });

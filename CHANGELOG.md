@@ -2,6 +2,8 @@
 
 ## Unreleased
 
++ [修复] 在 canvas.worldcodes.online 上，地址保存为 https://worldcodes.online 的渠道改走同源代理，不再因网关拒绝跨域预检而只显示「请求失败」。
+
 + [调整] 视频专用频道下架上游 ai666 已不再提供的 wan-3.0-1080p-30s、wan-3.0-1080p-30s-pro，现为 31 个在售型号；已选这两个型号的配置回落到默认 MiniMax-H3。
 
 + [新增] 视频专用频道上架 ai666 新增的 13 个型号：sd-2.0-720p、sd-2.0-fast-480p-plus / 720p-plus、sd-2.5-480p-pro、seedance-2.0-720p-plus / pro、seedance-2.5-480p-mini / plus / pro / max / ultra、seedance-2.5-720p-max / ultra，现为 33 个在售型号。

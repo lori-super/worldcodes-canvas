@@ -1,7 +1,7 @@
 import axios from "axios";
 
 import i18n from "@/i18n";
-import { buildApiUrl, resolveModelRequestConfig, resolveModelScript, withLocalProxy, type AiConfig, type ModelChannel } from "@/stores/use-config-store";
+import { buildApiUrl, resolveModelRequestConfig, resolveModelScript, sameOriginWorldCodesBaseUrl, withLocalProxy, type AiConfig, type ModelChannel } from "@/stores/use-config-store";
 import { normalizePluginImages, runModelPlugin } from "./model-plugin";
 import { nanoid } from "nanoid";
 import { dataUrlToFile } from "@/lib/image-utils";
@@ -381,7 +381,7 @@ function usesGeminiImageEndpoint(config: Pick<AiConfig, "apiFormat" | "baseUrl" 
 }
 
 function worldCodesGeminiBaseUrl(baseUrl: string) {
-    const normalizedBaseUrl = baseUrl.trim().replace(/\/+$/, "");
+    const normalizedBaseUrl = sameOriginWorldCodesBaseUrl(baseUrl).replace(/\/+$/, "");
     const lowerBaseUrl = normalizedBaseUrl.toLowerCase();
     if (lowerBaseUrl.endsWith("/v1beta")) return normalizedBaseUrl;
     if (lowerBaseUrl.endsWith("/v1")) return `${normalizedBaseUrl.slice(0, -3)}/v1beta`;
