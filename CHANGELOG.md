@@ -2,6 +2,8 @@
 
 ## Unreleased
 
++ [新增] 视频专用频道上架 ai666 新增的 13 个型号：sd-2.0-720p、sd-2.0-fast-480p-plus / 720p-plus、sd-2.5-480p-pro、seedance-2.0-720p-plus / pro、seedance-2.5-480p-mini / plus / pro / max / ultra、seedance-2.5-720p-max / ultra，现为 33 个在售型号。
+
 + [调整] 视频专用频道下架上游 ai666 已不再提供的 sd-2.0-fast-720p、sd-2.5-1080p-ultra、seedance-2.0-mini-480p / 720p、seedance-2.5-480p / 720p，现为 20 个在售型号；已选这些型号的配置回落到默认 MiniMax-H3。
 
 + [调整] 内置模型同步 WorldCodes 当前在售清单：生图新增 GPT Image 2.5 / Flare / Sunburst、Grok Imagine 2.0、Nano Banana Pro，视频专用频道换成 26 个在售型号，默认视频模型改为 MiniMax-H3；已保存的旧型号选择自动迁移到对应新型号。
