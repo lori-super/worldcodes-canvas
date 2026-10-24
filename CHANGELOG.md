@@ -2,6 +2,8 @@
 
 ## Unreleased
 
++ [调整] 视频专用频道下架上游 ai666 已不再提供的 sd-2.0-fast-720p、sd-2.5-1080p-ultra、seedance-2.0-mini-480p / 720p、seedance-2.5-480p / 720p，现为 20 个在售型号；已选这些型号的配置回落到默认 MiniMax-H3。
+
 + [调整] 内置模型同步 WorldCodes 当前在售清单：生图新增 GPT Image 2.5 / Flare / Sunburst、Grok Imagine 2.0、Nano Banana Pro，视频专用频道换成 26 个在售型号，默认视频模型改为 MiniMax-H3；已保存的旧型号选择自动迁移到对应新型号。
 + [修复] MiniMax-H3 改用公网素材地址、768P 和 1–15 秒提交，符合网关 DMC v2 校验；Gemini 生图型号统一走原生 generateContent，不再误发到 /v1/images。
 + [调整] 视频设置按型号限定清晰度、时长（只接受固定档位的型号显示档位按钮）和参考图/视频/音频数量，参数摘要显示实际发送值。
