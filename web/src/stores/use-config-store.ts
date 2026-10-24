@@ -77,17 +77,29 @@ const OPENAI_BASE_URL = "https://api.openai.com";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
 const WORLD_CODES_BASE_URL = "/";
 const WORLD_CODES_CHANNEL_ID = "worldcodes";
+const WORLD_CODES_VIDEO_CHANNEL_ID = "worldcodes-video";
 const WORLD_CODES_REMOVED_MODELS = new Set(["gpt-4o-mini-tts", "MiniMax-H3"]);
+// Former preset names that WorldCodes no longer lists; saved selections move to the listed model.
+const WORLD_CODES_RENAMED_MODELS: Record<string, string> = {
+    "grok-imagine-image-quality": "grok-imagine-image-2.0",
+    "nano-banana-2": "gemini-3.1-flash-image-preview",
+    "grok-imagine-video": "grok-imagine-video-1.5-preview",
+};
 
+// WorldCodes「生图专用」分组的在售型号（2026-10-24）。
 const WORLD_CODES_MODELS: ChannelModel[] = [
-    { name: "grok-imagine-image-quality", displayName: "Grok Imagine", capability: "image" },
     { name: "gpt-image-2", displayName: "GPT Image 2", capability: "image" },
-    { name: "nano-banana-2", displayName: "Nano Banana 2", capability: "image" },
+    { name: "gpt-image-2.5", displayName: "GPT Image 2.5", capability: "image" },
+    { name: "gpt-image-2.5-flare", displayName: "GPT Image 2.5 Flare", capability: "image" },
+    { name: "gpt-image-2.5-sunburst", displayName: "GPT Image 2.5 Sunburst", capability: "image" },
+    { name: "grok-imagine-image-2.0", displayName: "Grok Imagine 2.0", capability: "image" },
+    { name: "gemini-3.1-flash-image-preview", displayName: "Nano Banana 2", capability: "image" },
+    { name: "gemini-3-pro-image-preview", displayName: "Nano Banana Pro", capability: "image" },
 
     { name: "gpt-5.5", capability: "text" },
 ];
 
-const VIDEO_CHANNEL: ModelChannel = { id: "worldcodes-video", name: "WorldCodes 视频专用", baseUrl: "/", apiKey: "", apiFormat: "openai", models: Object.keys(videoProfiles).map(name => ({ name, capability: "video" })) };
+const VIDEO_CHANNEL: ModelChannel = { id: WORLD_CODES_VIDEO_CHANNEL_ID, name: "WorldCodes 视频专用", baseUrl: "/", apiKey: "", apiFormat: "openai", models: Object.keys(videoProfiles).map(name => ({ name, capability: "video" })) };
 export const LOCAL_PROXY_PACKAGE = "https://canvas.worldcodes.online/downloads/worldcodes-canvas-proxy-0.1.0.tgz";
 export const DEFAULT_LOCAL_PROXY_URL = "http://127.0.0.1:23210";
 
@@ -109,14 +121,14 @@ export const defaultConfig: AiConfig = {
     ],
     model: `${WORLD_CODES_CHANNEL_ID}::gpt-image-2`,
     imageModel: `${WORLD_CODES_CHANNEL_ID}::gpt-image-2`,
-    videoModel: "worldcodes-video::grok-imagine-video",
+    videoModel: `${WORLD_CODES_VIDEO_CHANNEL_ID}::MiniMax-H3`,
     textModel: `${WORLD_CODES_CHANNEL_ID}::gpt-5.5`,
     audioModel: "",
     audioVoice: "alloy",
     audioFormat: "mp3",
     audioSpeed: "1",
     audioInstructions: "",
-    videoSeconds: "6",
+    videoSeconds: "5",
     vquality: "720",
     videoGenerateAudio: "true",
     videoWatermark: "false",
@@ -156,7 +168,7 @@ type ConfigStore = {
     clearPromptContinue: () => void;
 };
 
-const VIDEO_KEYWORDS = ["video", "sora", "veo", "kling", "wan", "hailuo"];
+const VIDEO_KEYWORDS = ["video", "sora", "veo", "kling", "wan", "hailuo", "seedance"];
 
 export function boolConfig(value: string, fallback: boolean) {
     return value ? value === "true" : fallback;
@@ -167,7 +179,7 @@ const IMAGE_KEYWORDS = ["seedream", "gpt-image", "image", "dall-e", "dalle", "im
 /** Best-effort default capability for a freshly fetched model name; user can override in the channel editor. */
 export function guessCapability(name: string): ModelCapability {
     const value = name.toLowerCase();
-    if (videoProfile(name) || value === "minimax-h3") return "video";
+    if (videoProfile(name)) return "video";
     if (value.includes("nano-banana")) return "image";
     if (VIDEO_KEYWORDS.some((keyword) => value.includes(keyword))) return "video";
     if (AUDIO_KEYWORDS.some((keyword) => value.includes(keyword))) return "audio";
@@ -255,7 +267,7 @@ export const useConfigStore = create<ConfigStore>()(
                 const persistedState = (persisted || {}) as Partial<ConfigStore>;
                 const persistedConfig = (persistedState.config || {}) as Partial<AiConfig>;
                 const persistedWebdav = (persistedState.webdav || {}) as Partial<WebdavSyncConfig>;
-                const config = { ...defaultConfig, ...persistedConfig };
+                const config = renameWorldCodesSelections({ ...defaultConfig, ...persistedConfig });
                 const channels = normalizeChannels(config);
                 const models = modelOptionsFromChannels(channels);
                 return {
@@ -454,7 +466,7 @@ function normalizeChannels(config: AiConfig) {
             ...channel,
             id: channel.id || (index === 0 ? "default" : `channel-${index + 1}`),
             name: channel.name || (index === 0 ? i18n.t("config.channels.defaultName") : i18n.t("config.channels.indexedName", { index: index + 1 })),
-            models: normalizeChannelModels(channel.models).filter((model) => channel.id !== WORLD_CODES_CHANNEL_ID || !WORLD_CODES_REMOVED_MODELS.has(model.name)),
+            models: channel.id === WORLD_CODES_CHANNEL_ID ? withWorldCodesModels(channel.models) : normalizeChannelModels(channel.models),
         }),
     );
     if (!channels.length) {
@@ -473,6 +485,22 @@ function normalizeChannels(config: AiConfig) {
     if (!videos) channels.push(createModelChannel(VIDEO_CHANNEL));
     else videos.models = VIDEO_CHANNEL.models;
     return channels;
+}
+
+/** Built-in WorldCodes models always lead the list; user-added models are kept after them. */
+function withWorldCodesModels(models: ChannelModel[] | undefined) {
+    const builtIn = new Set(WORLD_CODES_MODELS.map((model) => model.name));
+    const custom = normalizeChannelModels(models).filter((model) => !builtIn.has(model.name) && !WORLD_CODES_REMOVED_MODELS.has(model.name) && !WORLD_CODES_RENAMED_MODELS[model.name]);
+    return [...WORLD_CODES_MODELS, ...custom];
+}
+
+function renameWorldCodesSelections(config: AiConfig): AiConfig {
+    const rename = (value: string) => {
+        const decoded = decodeChannelModel(value);
+        const next = decoded && [WORLD_CODES_CHANNEL_ID, WORLD_CODES_VIDEO_CHANNEL_ID].includes(decoded.channelId) ? WORLD_CODES_RENAMED_MODELS[decoded.model] : undefined;
+        return next ? encodeChannelModel(decoded!.channelId, next) : value;
+    };
+    return { ...config, model: rename(config.model || ""), imageModel: rename(config.imageModel || ""), videoModel: rename(config.videoModel || "") };
 }
 
 export function defaultBaseUrlForApiFormat(apiFormat: ApiCallFormat) {

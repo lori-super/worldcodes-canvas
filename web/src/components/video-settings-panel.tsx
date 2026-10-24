@@ -31,9 +31,20 @@ type VideoSettingsPanelProps = {
     className?: string;
 };
 
+function activeVideoModel(config: AiConfig) {
+    return modelCapabilityOf(config, config.model) === "video" ? config.model : config.videoModel;
+}
+
+/** Summary of the parameters actually sent; profiled models show their snapped values and have no mode switch. */
+export function videoSettingsSummary(config: AiConfig, model = activeVideoModel(config)) {
+    if (!videoProfile(model)) return `${videoResolutionLabel(config.vquality)} · ${videoSizeLabel(config.size)} · ${videoSecondsLabel(config.videoSeconds)} · ${videoModeLabel(config.videoMode)}`;
+    const normalized = normalizeProfileVideo(model, config.videoSeconds, config.vquality, config.size);
+    return `${normalized.vquality} · ${normalized.size} · ${normalized.videoSeconds}s`;
+}
+
 export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = true, className = "w-[320px] space-y-4 rounded-2xl px-1 py-0.5" }: VideoSettingsPanelProps) {
     const { t } = useTranslation();
-    const activeModel = modelCapabilityOf(config, config.model) === "video" ? config.model : config.videoModel;
+    const activeModel = activeVideoModel(config);
     const profile = videoProfile(activeModel);
     const normalized = normalizeProfileVideo(activeModel, config.videoSeconds, config.vquality, config.size);
     const minSeconds = profile?.min ?? VIDEO_SECONDS_MIN;
@@ -91,11 +102,17 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
                     </div>
                 </SettingGroup>
                 <SettingGroup title={t("settingsPanels.video.seconds")} color={theme.node.muted}>
-                    <div className="flex items-center gap-3" onMouseDown={(event) => event.stopPropagation()}>
+                    {profile?.durations ? <div className="grid grid-cols-4 gap-2.5">
+                        {profile.durations.map((value) => (
+                            <OptionPill key={value} selected={seconds === value} theme={theme} onClick={() => onConfigChange("videoSeconds", String(value))}>
+                                {value}s
+                            </OptionPill>
+                        ))}
+                    </div> : <div className="flex items-center gap-3" onMouseDown={(event) => event.stopPropagation()}>
                         <Slider className="min-w-0 flex-1" min={minSeconds} max={maxSeconds} step={1} value={seconds} onChange={(value) => onConfigChange("videoSeconds", String(Array.isArray(value) ? value[0] : value))} />
                         <SecondsInput min={minSeconds} max={maxSeconds} value={seconds} theme={theme} onCommit={(value) => onConfigChange("videoSeconds", String(value))} />
                         <span className="shrink-0 text-sm" style={{ color: theme.node.muted }}>s</span>
-                    </div>
+                    </div>}
                 </SettingGroup>
                 {profile ? null : <SettingGroup title={t("settingsPanels.video.mode")} color={theme.node.muted}>
                     <div className="grid grid-cols-2 gap-2.5">

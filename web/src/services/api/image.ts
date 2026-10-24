@@ -116,7 +116,8 @@ const IMAGE_MAX_PIXELS = 8294400;
 const IMAGE_MAX_EDGE = 3840;
 const IMAGE_MAX_RATIO = 3;
 const IMAGE_OUTPUT_FORMAT = "png";
-const WORLD_CODES_NANO_BANANA_MODEL = "nano-banana-2";
+// WorldCodes routes Gemini image models only through the native generateContent endpoint, not /v1/images.
+const WORLD_CODES_GEMINI_IMAGE_MODEL = /^(?:gemini-.*image|nano-banana)/i;
 const WORLD_CODES_RELAY_ORIGINS = new Set(["https://worldcodes.online"]);
 
 const GEMINI_SUPPORTED_RATIOS = ["1:1", "1:4", "1:8", "2:3", "3:2", "3:4", "4:1", "4:3", "4:5", "5:4", "8:1", "9:16", "16:9", "21:9"];
@@ -239,7 +240,7 @@ function resolveGeminiImageSize(quality: string, dimensions: { width: number; he
 
 function supportsGeminiImageSize(model: string) {
     const value = model.toLowerCase();
-    return value === WORLD_CODES_NANO_BANANA_MODEL || value.includes("gemini-3") || value.includes("3.1") || value.includes("3-pro");
+    return value.startsWith("nano-banana") || value.includes("gemini-3") || value.includes("3.1") || value.includes("3-pro");
 }
 
 function resolveImageSource(item: Record<string, unknown>) {
@@ -362,8 +363,8 @@ function geminiModelName(model: string) {
     return model.trim().replace(/^models\//, "");
 }
 
-function isSameOriginWorldCodesNanoBanana(config: Pick<AiConfig, "baseUrl" | "model">) {
-    if (geminiModelName(config.model).toLowerCase() !== WORLD_CODES_NANO_BANANA_MODEL) return false;
+function isSameOriginWorldCodesGeminiImage(config: Pick<AiConfig, "baseUrl" | "model">) {
+    if (!WORLD_CODES_GEMINI_IMAGE_MODEL.test(geminiModelName(config.model))) return false;
     const baseUrl = config.baseUrl.trim();
     if (!baseUrl || (baseUrl.startsWith("/") && !baseUrl.startsWith("//"))) return true;
     try {
@@ -376,7 +377,7 @@ function isSameOriginWorldCodesNanoBanana(config: Pick<AiConfig, "baseUrl" | "mo
 }
 
 function usesGeminiImageEndpoint(config: Pick<AiConfig, "apiFormat" | "baseUrl" | "model">) {
-    return config.apiFormat === "gemini" || isSameOriginWorldCodesNanoBanana(config);
+    return config.apiFormat === "gemini" || isSameOriginWorldCodesGeminiImage(config);
 }
 
 function worldCodesGeminiBaseUrl(baseUrl: string) {
@@ -388,7 +389,7 @@ function worldCodesGeminiBaseUrl(baseUrl: string) {
 }
 
 function geminiApiUrl(config: Pick<AiConfig, "baseUrl" | "model">, action?: "generateContent" | "streamGenerateContent") {
-    const baseUrl = isSameOriginWorldCodesNanoBanana(config) ? worldCodesGeminiBaseUrl(config.baseUrl) : geminiBaseUrl(config);
+    const baseUrl = isSameOriginWorldCodesGeminiImage(config) ? worldCodesGeminiBaseUrl(config.baseUrl) : geminiBaseUrl(config);
     if (!action) return withLocalProxy(`${baseUrl}/models`);
     return withLocalProxy(`${baseUrl}/models/${encodeURIComponent(geminiModelName(config.model))}:${action}`);
 }

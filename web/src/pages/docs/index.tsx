@@ -3,17 +3,21 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 const modelRows = [
-    ["Grok Imagine", "生图", "文生图与创意视觉"],
-    ["GPT Image 2", "生图", "文生图、参考图与编辑"],
-    ["Nano Banana 2", "生图", "文生图与参考图生成"],
-    ["MiniMax H3", "视频", "文生视频，支持图片、视频和音频参考"],
+    ["GPT Image 2 / 2.5", "生图", "文生图、参考图与编辑，含 Flare、Sunburst"],
+    ["Grok Imagine 2.0", "生图", "文生图与创意视觉"],
+    ["Nano Banana 2 / Pro", "生图", "Gemini 原生接口，文生图与参考图生成"],
+    ["MiniMax H3", "视频", "768P、1–15 秒，支持首尾帧及图片、视频和音频参考"],
+    ["Seedance / SD 2.x", "视频", "按型号限定 480p/720p/1080p、时长档位与参考素材数量"],
+    ["Wan 3.0 / Omni / Grok 1.5", "视频", "文生视频与参考图生成，参数按型号自动限定"],
 ];
 
 const englishModelRows = [
-    ["Grok Imagine", "Image", "Text-to-image and creative visuals"],
-    ["GPT Image 2", "Image", "Generation, references, and editing"],
-    ["Nano Banana 2", "Image", "Generation with image references"],
-    ["MiniMax H3", "Video", "Text-to-video with image, video, and audio references"],
+    ["GPT Image 2 / 2.5", "Image", "Generation, references, and editing, including Flare and Sunburst"],
+    ["Grok Imagine 2.0", "Image", "Text-to-image and creative visuals"],
+    ["Nano Banana 2 / Pro", "Image", "Native Gemini endpoint with image references"],
+    ["MiniMax H3", "Video", "768P, 1–15 seconds, first/last frames plus image, video, and audio references"],
+    ["Seedance / SD 2.x", "Video", "Per-model 480p/720p/1080p, duration options, and reference limits"],
+    ["Wan 3.0 / Omni / Grok 1.5", "Video", "Text-to-video and image references with per-model parameters"],
 ];
 
 export default function DocsPage() {
@@ -107,7 +111,7 @@ export default function DocsPage() {
                                 {chinese ? "本地参考图片、音频和视频保存在当前浏览器的 IndexedDB，不经过站点应用服务器。清理浏览器数据会删除这些本地素材。" : "Local image, audio, and video references are stored in this browser's IndexedDB and do not pass through the application server. Clearing browser data removes them."}
                             </InfoCard>
                             <InfoCard title={chinese ? "生成期间：R2 临时对象" : "During generation: temporary R2 objects"}>
-                                {chinese ? "MiniMax H3 需要公网可读参考素材时，Relay 只签发上传地址；浏览器直接上传到 R2，PixStag 通过短读取域名访问临时对象。任务结束后清理，异常任务按生命周期自动过期。" : "When MiniMax H3 needs public references, Relay issues a signed upload URL, the browser uploads directly to R2, and PixStag reads temporary objects through the short media domain. Objects are removed after the task or expire automatically."}
+                                {chinese ? "视频模型需要公网可读参考素材时，Relay 只签发上传地址；浏览器直接上传到 R2，视频上游通过短读取域名访问临时对象。任务结束后清理，异常任务按生命周期自动过期。" : "When a video model needs public references, Relay issues a signed upload URL, the browser uploads directly to R2, and the video provider reads temporary objects through the short media domain. Objects are removed after the task or expire automatically."}
                             </InfoCard>
                         </div>
                     </section>
@@ -140,7 +144,7 @@ export default function DocsPage() {
                         <div className="mt-6 rounded-xl border border-stone-200 p-5 dark:border-stone-800">
                             <div className="grid gap-4 text-sm sm:grid-cols-[150px_1fr]">
                                 <strong>{chinese ? "站点子域名" : "Site subdomain"}</strong><span className="text-stone-600 dark:text-stone-300">WorldCodes Canvas Web</span>
-                                <strong>Relay API</strong><span className="text-stone-600 dark:text-stone-300">PixStag / MiniMax H3 / image providers / signed media uploads</span>
+                                <strong>Relay API</strong><span className="text-stone-600 dark:text-stone-300">Video providers / image providers / signed media uploads</span>
                                 <strong>Cloudflare R2</strong><span className="text-stone-600 dark:text-stone-300">{chinese ? "临时参考媒体对象存储" : "Temporary reference media objects"}</span>
                                 <strong>Local Agent</strong><span className="text-stone-600 dark:text-stone-300">{chinese ? "仅在用户电脑运行，不进入 Relay" : "Runs only on the user's computer, never inside Relay"}</span>
                             </div>

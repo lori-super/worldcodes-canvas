@@ -24,10 +24,10 @@ Object.defineProperty(globalThis, "location", { configurable: true, value: { hre
 
 beforeEach(() => post.mockClear());
 
-test("Nano Banana 2 uses Gemini imageConfig with an explicit image size", async () => {
+test("WorldCodes Nano Banana 2 uses Gemini imageConfig with an explicit image size", async () => {
     const { requestGeneration } = await import("../src/services/api/image");
     const { defaultConfig } = await import("../src/stores/use-config-store");
-    const model = "worldcodes::nano-banana-2";
+    const model = "worldcodes::gemini-3.1-flash-image-preview";
     const config = {
         ...defaultConfig,
         model,
@@ -41,7 +41,7 @@ test("Nano Banana 2 uses Gemini imageConfig with an explicit image size", async 
 
     expect(post).toHaveBeenCalledTimes(1);
     const [url, body, options] = post.mock.calls[0];
-    expect(url).toBe("/v1beta/models/nano-banana-2:generateContent");
+    expect(url).toBe("/v1beta/models/gemini-3.1-flash-image-preview:generateContent");
     expect(body.generationConfig).toEqual({
         responseModalities: ["TEXT", "IMAGE"],
         imageConfig: { aspectRatio: "1:1", imageSize: "1K" },
@@ -49,10 +49,10 @@ test("Nano Banana 2 uses Gemini imageConfig with an explicit image size", async 
     expect(options.headers["x-goog-api-key"]).toBe("test-key");
 });
 
-test("the formal WorldCodes origin keeps the Nano Banana Relay route", async () => {
+test("the formal WorldCodes origin keeps the Nano Banana Pro Relay route", async () => {
     const { requestGeneration } = await import("../src/services/api/image");
     const { defaultConfig } = await import("../src/stores/use-config-store");
-    const model = "worldcodes::nano-banana-2";
+    const model = "worldcodes::gemini-3-pro-image-preview";
     const config = {
         ...defaultConfig,
         model,
@@ -67,7 +67,7 @@ test("the formal WorldCodes origin keeps the Nano Banana Relay route", async () 
     await requestGeneration(config, "测试提示词");
 
     const [url, , options] = post.mock.calls[0];
-    expect(url).toBe("https://worldcodes.online/v1beta/models/nano-banana-2:generateContent");
+    expect(url).toBe("https://worldcodes.online/v1beta/models/gemini-3-pro-image-preview:generateContent");
     expect(options.headers["x-goog-api-key"]).toBe("formal-key");
 });
 
@@ -120,4 +120,17 @@ test("multi-reference GPT Image edits send image[] and omit response_format", as
     expect(form.getAll("image[]")).toHaveLength(2);
     expect(form.has("image")).toBe(false);
     expect(form.has("response_format")).toBe(false);
+});
+
+test("WorldCodes GPT Image 2.5 and Grok Imagine 2.0 keep the OpenAI image endpoint", async () => {
+    const { requestGeneration } = await import("../src/services/api/image");
+    const { defaultConfig } = await import("../src/stores/use-config-store");
+    for (const name of ["gpt-image-2.5-flare", "grok-imagine-image-2.0"]) {
+        post.mockResolvedValueOnce({ data: { data: [{ b64_json: "AA==" }] } } as never);
+        await requestGeneration({ ...defaultConfig, model: `worldcodes::${name}` }, "test");
+    }
+    expect(post.mock.calls.map((call) => [call[0], (call[1] as { model: string }).model])).toEqual([
+        ["/v1/images/generations", "gpt-image-2.5-flare"],
+        ["/v1/images/generations", "grok-imagine-image-2.0"],
+    ]);
 });
