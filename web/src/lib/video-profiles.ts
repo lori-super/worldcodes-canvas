@@ -1,4 +1,4 @@
-// WorldCodes「视频专用」分组的在售型号（渠道 26，2026-10-25：按 ai666 /v1/models 下架 6 个已不存在的 seedance/sd 型号，并上架 13 个上游新增型号）。时长/分辨率/参考素材上限取自上游广场说明与网关校验；
+// WorldCodes「视频专用」分组的在售型号（渠道 26，2026-10-25：按 ai666 /v1/models 下架 6 个已不存在的 seedance/sd 型号，并上架 13 个上游新增型号；下架 wan-3.0-1080p-30s / -pro）。时长/分辨率/参考素材上限取自上游广场说明与网关校验；
 // 没写明的参考素材上限按同系列厂商文档取保守值。durations 表示上游只接受这几档时长。
 export type VideoProfile = { min: number; max: number; durations?: number[]; defaultSeconds: number; resolutions: string[]; images: number; videos: number; audios: number };
 const profile = (min: number, max: number, resolutions: string[], images: number, videos: number, audios: number, defaultSeconds = 5): VideoProfile => ({ min, max, defaultSeconds, resolutions, images, videos, audios });
@@ -37,8 +37,6 @@ export const videoProfiles: Record<string, VideoProfile> = {
     "wan-3.0": wan(["720p", "1080p"]),
     "wan-3.0-1080p": wan(["1080p"]),
     "wan-3.0-720p-30s": discrete([30], ["720p"], 10, 5, 5),
-    "wan-3.0-1080p-30s": discrete([30], ["1080p"], 10, 5, 5),
-    "wan-3.0-1080p-30s-pro": discrete([30], ["1080p"], 10, 5, 5),
     "wan-3.0-per-second": wan(["720p"], 30),
     "wan-3.0-per-second-1080": wan(["1080p"], 30),
 };

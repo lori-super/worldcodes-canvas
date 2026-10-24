@@ -29,7 +29,7 @@ test("fresh hydration keeps only real WorldCodes presets", async () => {
         "gemini-3-pro-image-preview",
         "gpt-5.5",
     ]);
-    expect(config.channels[1]?.models).toHaveLength(33);
+    expect(config.channels[1]?.models).toHaveLength(31);
     expect(config.videoModel).toBe("worldcodes-video::MiniMax-H3");
     expect(config.audioModel).toBe("");
     expect(guessCapability("nano-banana-pro")).toBe("image");
