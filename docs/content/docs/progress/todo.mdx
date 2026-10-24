@@ -7,7 +7,7 @@ description: Planned follow-up work
 
 - 为同步生成尚未返回结果时的断线提供持久化异步任务恢复，避免只能重新提交；已返回的外链结果支持领取恢复。
 
-- 取得并实测 ZZ One 更高清晰度的独立价格后，再开放相应档位；上游生成失败或未上架的视频模型须验证成功后添加。
+- 内置生图/视频型号目前按 WorldCodes 分组清单写死，中转站上下架后需同步修改 `use-config-store.ts` 与 `video-profiles.ts`，后续可改为读取模型广场；ai666 视频参考素材字段名待付费实测确认。
 
 - Add release signing and automatic update verification for the WorldCodes Agent package.
 - Replace the Claude Code CLI adapter with a Claude Agent SDK adapter and improve the tool queue, following the [Local Agent Integration Plan](/docs/progress/local-agent-integration-plan).

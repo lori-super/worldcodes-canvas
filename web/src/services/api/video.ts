@@ -83,8 +83,8 @@ export async function createVideoGenerationTask(config: AiConfig, prompt: string
         return createPluginVideoTask(requestConfig, selectedModel, script, prompt, references.images || [], options);
     }
     assertVideoConfig(requestConfig, requestConfig.model);
-    if (videoProfile(requestConfig.model)) return createCompatibleVideoTask(requestConfig, selectedModel, prompt, references, options);
     if (isMiniMaxH3(requestConfig.model)) return createMiniMaxH3Task(requestConfig, selectedModel, prompt, references, options);
+    if (videoProfile(requestConfig.model)) return createCompatibleVideoTask(requestConfig, selectedModel, prompt, references, options);
     const mediaOptions = { ...options, videos: references.videos, audios: references.audios };
     if (requestConfig.apiFormat === "gemini") return createGeminiVideoTask(requestConfig, selectedModel, prompt, references.images || [], mediaOptions);
     return createOpenAIVideoTask(requestConfig, selectedModel, prompt, references.images || [], mediaOptions);
@@ -157,14 +157,17 @@ export async function storeGeneratedVideo(result: VideoGenerationResult): Promis
     throw new Error(apiText("noPlayableVideo"));
 }
 
+// The DMC v2 gateway only reads public HTTPS media URLs from content[]; uploads are sent by their asset URL.
 type MiniMaxH3Content =
     | { type: "text"; text: string }
-    | { type: "image_url"; upload_id?: string; image_url: { url?: string; role: "first_frame" | "last_frame" | "reference_image" } }
-    | { type: "video_url"; upload_id?: string; video_url: { url?: string; role: "reference_video" } }
-    | { type: "audio_url"; upload_id?: string; audio_url: { url?: string; role: "reference_audio" } };
+    | { type: "image_url"; image_url: { url: string; role: "first_frame" | "last_frame" | "reference_image" } }
+    | { type: "video_url"; video_url: { url: string; role: "reference_video" } }
+    | { type: "audio_url"; audio_url: { url: string; role: "reference_audio" } };
 
 async function createMiniMaxH3Task(config: AiConfig, model: string, prompt: string, references: VideoGenerationReferences, options?: RequestOptions): Promise<VideoGenerationTask> {
     if (!prompt.trim()) throw new Error(apiText("videoPromptRequired"));
+    assertProfileReferences(model, references);
+    const normalized = normalizeProfileVideo(model, config.videoSeconds, config.vquality, config.size);
     const prepared = await prepareMiniMaxH3Content(config, prompt, references, options?.signal);
     try {
         const created = unwrapVideoResponse(
@@ -172,10 +175,10 @@ async function createMiniMaxH3Task(config: AiConfig, model: string, prompt: stri
                 await axios.post<ApiVideoResponse>(
                     aiApiUrl(config, "/videos"),
                     {
-                        model: "MiniMax-H3",
-                        duration: normalizeMiniMaxH3Duration(config.videoSeconds),
-                        ratio: normalizeMiniMaxH3Ratio(config.size),
-                        resolution: normalizeMiniMaxH3Resolution(config.vquality),
+                        model: modelOptionName(model),
+                        duration: Number(normalized.videoSeconds),
+                        ratio: normalized.size,
+                        resolution: normalized.vquality.toUpperCase(),
                         content: prepared.content,
                     },
                     { headers: aiHeaders(config, "application/json"), signal: options?.signal },
@@ -195,27 +198,15 @@ async function createMiniMaxH3Task(config: AiConfig, model: string, prompt: stri
 
 async function createCompatibleVideoTask(config: AiConfig, model: string, prompt: string, references: VideoGenerationReferences, options?: RequestOptions): Promise<VideoGenerationTask> {
     const name = modelOptionName(model);
-    const profile = videoProfile(name)!;
-    const images = references.images || [], videos = references.videos || [], audios = references.audios || [];
     if (!prompt.trim()) throw new Error(apiText("videoPromptRequired"));
-    if (images.length > profile.images || videos.length > profile.videos || audios.length > profile.audios) throw new Error(`该模型最多支持 ${profile.images} 张图片、${profile.videos} 个视频和 ${profile.audios} 条音频`);
+    assertProfileReferences(name, references);
     const normalized = normalizeProfileVideo(name, config.videoSeconds, config.vquality, config.size);
-    const grok = name.startsWith("grok-imagine-video");
-    if (grok && ![0, 1, 7].includes(images.length)) throw new Error("Grok 需要 1 张首帧图或恰好 7 张参考图");
-    if (name === "grok-imagine-video" && images.length === 7 && Number(normalized.videoSeconds) > 10) throw new Error("Grok 参考图模式最多支持 10 秒");
     const prepared = await prepareMiniMaxH3Content(config, prompt, references, options?.signal);
     try {
-        const urls = (type: string) => prepared.content.flatMap(item => {
-            if (item.type !== type || item.type === "text") return [];
-            const entry = item as Exclude<MiniMaxH3Content, { type: "text" }>;
-            const url = entry.upload_id ? prepared.urls[entry.upload_id] : "image_url" in entry ? entry.image_url.url : "video_url" in entry ? entry.video_url.url : entry.audio_url.url;
-            return url ? [url] : [];
-        });
-        const body = { model: name, prompt, seconds: normalized.videoSeconds, resolution: normalized.vquality,
-            ...(!(grok && images.length === 1) ? { aspect_ratio: normalized.size } : {}),
-            images: urls("image_url"), videos: urls("video_url"), audios: urls("audio_url"),
-            ...(grok ? { video_mode: images.length === 1 ? "first_frame" : images.length === 7 ? "reference" : "text" } : {}),
-        };
+        const urls = (type: "image_url" | "video_url" | "audio_url") => prepared.content.flatMap((item) => (item.type === "image_url" && type === item.type ? [item.image_url.url] : item.type === "video_url" && type === item.type ? [item.video_url.url] : item.type === "audio_url" && type === item.type ? [item.audio_url.url] : []));
+        const media = { images: urls("image_url"), videos: urls("video_url"), audios: urls("audio_url") };
+        // The gateway verified seconds/resolution/aspect_ratio for ai666; media arrays are only sent when present.
+        const body = { model: name, prompt, seconds: normalized.videoSeconds, resolution: normalized.vquality, aspect_ratio: normalized.size, ...Object.fromEntries(Object.entries(media).filter(([, list]) => list.length)) };
         const created = unwrapVideoResponse((await axios.post<ApiVideoResponse>(aiApiUrl(config, "/videos"), body, { headers: aiHeaders(config, "application/json"), signal: options?.signal })).data);
         const id = created.id || created.task_id;
         if (!id) throw new Error(apiText("noVideoTaskId"));
@@ -227,10 +218,15 @@ async function createCompatibleVideoTask(config: AiConfig, model: string, prompt
     }
 }
 
+function assertProfileReferences(model: string, references: VideoGenerationReferences) {
+    const profile = videoProfile(model);
+    const images = references.images?.length || 0, videos = references.videos?.length || 0, audios = references.audios?.length || 0;
+    if (profile && (images > profile.images || videos > profile.videos || audios > profile.audios)) throw new Error(apiText("videoReferenceLimit", { images: profile.images, videos: profile.videos, audios: profile.audios }));
+}
+
 async function prepareMiniMaxH3Content(config: AiConfig, prompt: string, references: VideoGenerationReferences, signal?: AbortSignal) {
     const content: MiniMaxH3Content[] = [{ type: "text", text: prompt }];
     const uploadIds: string[] = [];
-    const urls: Record<string, string> = {};
 
     try {
         for (const image of references.images || []) {
@@ -245,8 +241,7 @@ async function prepareMiniMaxH3Content(config: AiConfig, prompt: string, referen
             await assertMiniMaxH3ReferenceDimensions(blob, "image");
             const upload = await uploadTemporaryMedia(config, blob, image.name || "reference.png", signal);
             uploadIds.push(upload.id);
-            urls[upload.id] = upload.assetUrl;
-            content.push({ type: "image_url", upload_id: upload.id, image_url: { role } });
+            content.push({ type: "image_url", image_url: { url: upload.assetUrl, role } });
         }
 
         for (const video of references.videos || []) {
@@ -260,8 +255,7 @@ async function prepareMiniMaxH3Content(config: AiConfig, prompt: string, referen
             await assertMiniMaxH3ReferenceDimensions(blob, "video");
             const upload = await uploadTemporaryMedia(config, blob, video.name || "reference.mp4", signal);
             uploadIds.push(upload.id);
-            urls[upload.id] = upload.assetUrl;
-            content.push({ type: "video_url", upload_id: upload.id, video_url: { role: "reference_video" } });
+            content.push({ type: "video_url", video_url: { url: upload.assetUrl, role: "reference_video" } });
         }
 
         for (const audio of references.audios || []) {
@@ -274,10 +268,9 @@ async function prepareMiniMaxH3Content(config: AiConfig, prompt: string, referen
             if (!blob) throw new Error(apiText("invalidReferenceAudio"));
             const upload = await uploadTemporaryMedia(config, blob, audio.name || "reference.mp3", signal);
             uploadIds.push(upload.id);
-            urls[upload.id] = upload.assetUrl;
-            content.push({ type: "audio_url", upload_id: upload.id, audio_url: { role: "reference_audio" } });
+            content.push({ type: "audio_url", audio_url: { url: upload.assetUrl, role: "reference_audio" } });
         }
-        return { content, uploadIds, urls };
+        return { content, uploadIds };
     } catch (error) {
         await deleteTemporaryMedia(config, uploadIds);
         throw error;
@@ -516,33 +509,6 @@ function assertStandardVideoReferences(references: VideoGenerationReferences, ma
 
 function isMiniMaxH3(model: string) {
     return modelOptionName(model).toLowerCase() === "minimax-h3";
-}
-
-function normalizeMiniMaxH3Duration(value: string) {
-    const seconds = Math.floor(Number(value) || 6);
-    return Math.max(4, Math.min(15, seconds));
-}
-
-function normalizeMiniMaxH3Ratio(value: string) {
-    const supported = ["adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"] as const;
-    if (value === "auto") return "adaptive";
-    if (supported.includes(value as (typeof supported)[number])) return value;
-    const match = value.match(/^(\d+)x(\d+)$/);
-    if (!match) return "1:1";
-    const target = Number(match[1]) / Number(match[2]);
-    return supported.slice(1).reduce((best, ratio) => {
-        const [width, height] = ratio.split(":").map(Number);
-        const [bestWidth, bestHeight] = best.split(":").map(Number);
-        return Math.abs(width / height - target) < Math.abs(bestWidth / bestHeight - target) ? ratio : best;
-    });
-}
-
-function normalizeMiniMaxH3Resolution(value: string) {
-    const normalized = value.trim().toUpperCase().replace(/P$/, "");
-    if (normalized === "768") return "768P";
-    if (normalized === "1080") return "1080P";
-    if (normalized === "2K" || normalized === "2048") return "2K";
-    return "720P";
 }
 
 function normalizeVideoSeconds(value: string) {

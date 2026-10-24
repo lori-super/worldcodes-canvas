@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 import { AssetPickerModal, type InsertAssetPayload } from "@/components/canvas/asset-picker-modal";
 import { ModelPicker } from "@/components/model-picker";
 import { PromptSelectDialog } from "@/components/prompts/prompt-select-dialog";
-import { VideoSettingsPanel, normalizeVideoResolutionValue, normalizeVideoSizeValue, videoModeLabel, videoSizeLabel } from "@/components/video-settings-panel";
+import { VideoSettingsPanel, normalizeVideoResolutionValue, normalizeVideoSizeValue, videoModeLabel, videoSettingsSummary, videoSizeLabel } from "@/components/video-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { clampVideoSeconds } from "@/lib/media-size";
 import { formatBytes, formatDuration } from "@/lib/image-utils";
@@ -638,7 +638,7 @@ export default function VideoPage() {
 
                             <div className="flex items-center justify-between rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm dark:border-stone-800 dark:bg-stone-900 sm:hidden">
                                 <span className="truncate text-stone-500 dark:text-stone-400">
-                                    {modelOptionLabel(effectiveConfig, model)} · {normalizeResolution(effectiveConfig.vquality)}p · {videoSizeLabel(effectiveConfig.size)} · {normalizeVideoSeconds(effectiveConfig.videoSeconds)}s · {videoModeLabel(effectiveConfig.videoMode)}
+                                    {modelOptionLabel(effectiveConfig, model)} · {videoProfile(model) ? videoSettingsSummary(effectiveConfig, model) : `${normalizeResolution(effectiveConfig.vquality)}p · ${videoSizeLabel(effectiveConfig.size)} · ${normalizeVideoSeconds(effectiveConfig.videoSeconds)}s · ${videoModeLabel(effectiveConfig.videoMode)}`}
                                 </span>
                                 <Button size="small" type="text" icon={<SlidersHorizontal className="size-4" />} onClick={() => setSettingsOpen(true)}>
                                     {t("workbench.adjust")}
@@ -978,14 +978,13 @@ function buildLog({ prompt, model, config, references, referenceVideos, referenc
 }
 
 function buildVideoConfig(config: AiConfig, model: string): AiConfig {
-    const miniMaxH3 = isMiniMaxH3Model(model);
     return {
         ...config,
         model,
         videoModel: model,
-        size: miniMaxH3 ? normalizeMiniMaxH3Ratio(config.size) : normalizeVideoSize(config.size),
-        videoSeconds: miniMaxH3 ? normalizeMiniMaxH3Seconds(config.videoSeconds) : normalizeVideoSeconds(config.videoSeconds),
-        vquality: miniMaxH3 ? normalizeMiniMaxH3Resolution(config.vquality) : normalizeResolution(config.vquality),
+        size: normalizeVideoSize(config.size),
+        videoSeconds: normalizeVideoSeconds(config.videoSeconds),
+        vquality: normalizeResolution(config.vquality),
         ...(videoProfile(model) ? normalizeProfileVideo(model, config.videoSeconds, config.vquality, config.size) : {}),
         videoGenerateAudio: String(boolConfig(config.videoGenerateAudio, true)),
         videoWatermark: String(boolConfig(config.videoWatermark, false)),
@@ -1000,24 +999,6 @@ function normalizeVideoSeconds(value: string) {
 
 function normalizeVideoSize(value: string) {
     return normalizeVideoSizeValue(value);
-}
-
-function normalizeMiniMaxH3Seconds(value: string) {
-    const seconds = Math.floor(Number(value) || 6);
-    return String(Math.max(4, Math.min(15, seconds)));
-}
-
-function normalizeMiniMaxH3Ratio(value: string) {
-    const ratios = ["adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"];
-    return value === "auto" ? "adaptive" : ratios.includes(value) ? value : "1:1";
-}
-
-function normalizeMiniMaxH3Resolution(value: string) {
-    const normalized = value.trim().toUpperCase().replace(/P$/, "");
-    if (normalized === "768") return "768P";
-    if (normalized === "1080") return "1080P";
-    if (normalized === "2K" || normalized === "2048") return "2K";
-    return "720P";
 }
 
 function normalizeResolution(value: string) {
