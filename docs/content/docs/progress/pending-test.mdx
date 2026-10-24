@@ -5,7 +5,7 @@ description: Implemented changes that still need manual verification
 
 # Pending Tests
 
-- WorldCodes 在售模型适配：干净浏览器与已有旧配置各打开一次，生图频道应为 GPT Image 2 / 2.5 / 2.5 Flare / 2.5 Sunburst、Grok Imagine 2.0、Nano Banana 2（gemini-3.1-flash-image-preview）、Nano Banana Pro（gemini-3-pro-image-preview），旧的 grok-imagine-image-quality、nano-banana-2 选择自动换成新名字，Key 和自定义模型保留。两个 Gemini 型号的文生图、参考图须走同源 `/v1beta/models/*:generateContent`。视频频道应列出 20 个在售型号（10-25 已下架上游不再提供的 6 个 seedance/sd 型号）、默认 MiniMax-H3；逐个切换检查清晰度、时长（omni 4/6/8/10、wan 30s 三款固定 30 秒）和参考素材数量上限。MiniMax-H3 本地参考图须先上传临时素材，再以 `content[].image_url.url`（公网 HTTPS）提交，`resolution` 为 `768P`。ai666 型号的参考图/视频/音频以 `images`/`videos`/`audios` URL 数组提交，上游是否识别这些字段尚未付费实测，10-25 已付费实测：sd-2.0-480p 带 `images` 成片使用了参考图，MiniMax-H3 首帧生效。
+- WorldCodes 在售模型适配：干净浏览器与已有旧配置各打开一次，生图频道应为 GPT Image 2 / 2.5 / 2.5 Flare / 2.5 Sunburst、Grok Imagine 2.0、Nano Banana 2（gemini-3.1-flash-image-preview）、Nano Banana Pro（gemini-3-pro-image-preview），旧的 grok-imagine-image-quality、nano-banana-2 选择自动换成新名字，Key 和自定义模型保留。两个 Gemini 型号的文生图、参考图须走同源 `/v1beta/models/*:generateContent`。视频频道应列出 33 个在售型号（10-25 下架上游不再提供的 6 个 seedance/sd 型号，并上架 13 个新型号；新型号的清晰度、时长与参考素材上限按上游说明配置，尚未逐个出片）、默认 MiniMax-H3；逐个切换检查清晰度、时长（omni 4/6/8/10、wan 30s 三款固定 30 秒）和参考素材数量上限。MiniMax-H3 本地参考图须先上传临时素材，再以 `content[].image_url.url`（公网 HTTPS）提交，`resolution` 为 `768P`。ai666 型号的参考图/视频/音频以 `images`/`videos`/`audios` URL 数组提交，上游是否识别这些字段尚未付费实测，10-25 已付费实测：sd-2.0-480p 带 `images` 成片使用了参考图，MiniMax-H3 首帧生效。
 
 - 图片创作页领取恢复：结果返回后立即保存原图；下载超时、断网或本地保存失败显示“已生成，待领取”，支持重新领取、打开及复制原图链接。刷新后从原历史继续领取并更新同一记录；更改模型、提示词或清空 Key 后重领不应新增生成 POST。批量部分失败必须保留各图片和具体错误。旧失败记录没有原图地址时须说明无法自动恢复。
 
